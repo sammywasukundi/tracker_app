@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1006614044559",
+    "project_id": "trackerapp-98e8d",
+    "storage_bucket": "trackerapp-98e8d.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1006614044559:android:2b3eebfa1d011fca6cb5fa",
+        "android_client_info": {
+          "package_name": "com.example.tracker_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCYknSmQC2ZLLNxoVzjT2CfqV36yX30x04"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
