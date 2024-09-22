@@ -20,7 +20,7 @@ class GetUserName extends StatelessWidget {
             snapshot.data!.data() as Map<String, dynamic>;
           return Text('${data['email']}');
         }
-        return Text('Chargement ..');
+        return const Text('Chargement ..');
       },
     );
   }

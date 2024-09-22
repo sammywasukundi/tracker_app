@@ -2,8 +2,10 @@
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:tracker_app/screens/auth/forgot_pwd_page.dart';
+//import 'package:flutter_spinkit/flutter_spinkit.dart';
 
 class LoginPage extends StatefulWidget {
   final VoidCallback showRegisterPage;
@@ -20,10 +22,23 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordController = TextEditingController();
 
   Future signIn() async {
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Center(child: SpinKitWave(
+          color: Colors.blueAccent[100],
+          size: 35,
+        ));
+      },
+    );
+
     await FirebaseAuth.instance.signInWithEmailAndPassword(
       email: _emailController.text.trim(),
       password: _passwordController.text.trim()
     );
+
+    Navigator.of(context).pop();
   }
 
   @override
@@ -174,14 +189,9 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                       ),
                     ),
-                    
                   ],
                 )
-            
-              ],
-              
-            
-              
+              ],  
             ),
           ),
         ),

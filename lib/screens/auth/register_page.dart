@@ -8,6 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -82,14 +83,28 @@ class _RegisterPageState extends State<RegisterPage> {
 
 
   Future signUp() async {
+
+    
+
   //authentication
   try {
     if (passwordConfirmed()) {
+
+      showDialog(
+      context: context,
+      builder: (context) {
+        return Center(child: SpinKitWave(
+          color: Colors.blueAccent[100],
+          size: 35,
+        ));
+      },
+    );
       // Créer un nouvel utilisateur avec Firebase
       await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
+      Navigator.of(context).pop();
 
       // Ajouter les détails de l'utilisateur dans Firestore
       await addUserDetails(
@@ -109,6 +124,8 @@ class _RegisterPageState extends State<RegisterPage> {
     // Gérer les erreurs comme les emails déjà utilisés, etc.
     print('Erreur lors de l\'inscription: $e');
   }
+
+
 }
 
 
