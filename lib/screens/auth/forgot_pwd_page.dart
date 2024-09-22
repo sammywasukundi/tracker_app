@@ -13,6 +13,9 @@ class ForgotPassword extends StatefulWidget {
 class _ForgotPasswordState extends State<ForgotPassword> {
   final _emailController = TextEditingController();
 
+  // Form key
+  final _formKey = GlobalKey<FormState>();
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -20,26 +23,28 @@ class _ForgotPasswordState extends State<ForgotPassword> {
   }
 
   Future passwordReset() async {
-    try {
-      await FirebaseAuth.instance
-          .sendPasswordResetEmail(email: _emailController.text.trim());
-      showDialog(
-          context: context,
-          builder: (context) {
-            return AlertDialog(
-              content: Text(
-                  'Vérifiez votre boîte mail \n pour retrouver votre mot de passe'),
-            );
-          });
-    } on FirebaseAuthException catch (e) {
-      print(e);
-      showDialog(
-          context: context,
-          builder: (context) {
-            return AlertDialog(
-              content: Text(e.message.toString()),
-            );
-          });
+    if (_formKey.currentState!.validate()) {
+      try {
+        await FirebaseAuth.instance
+            .sendPasswordResetEmail(email: _emailController.text.trim());
+        showDialog(
+            context: context,
+            builder: (context) {
+              return AlertDialog(
+                content: Text(
+                    'Vérifiez votre boîte mail \n pour retrouver votre mot de passe'),
+              );
+            });
+      } on FirebaseAuthException catch (e) {
+        print(e);
+        showDialog(
+            context: context,
+            builder: (context) {
+              return AlertDialog(
+                content: Text(e.message.toString()),
+              );
+            });
+      }
     }
   }
 
@@ -85,16 +90,22 @@ class _ForgotPasswordState extends State<ForgotPassword> {
                   color: Colors.grey[200],
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 8.0),
-                  child: TextField(
-                    keyboardType: TextInputType.emailAddress,
-                    controller: _emailController,
-                    decoration: InputDecoration(
-                        border: InputBorder.none,
-                        hintText: 'Adresse email',
-                        hintStyle: TextStyle(
-                            color: Colors.grey, fontWeight: FontWeight.w300)),
+                child: Form(
+                  key: _formKey,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 8.0),
+                    child: TextFormField(
+                      keyboardType: TextInputType.emailAddress,
+                      controller: _emailController,
+                      decoration: InputDecoration(
+                          border: InputBorder.none,
+                          hintText: 'Adresse email',
+                          hintStyle: TextStyle(
+                              color: Colors.grey, fontWeight: FontWeight.w300)),
+                      validator: (val) => val == null || !val.contains('@')
+                          ? 'Email invalide'
+                          : null,
+                    ),
                   ),
                 ),
               ),

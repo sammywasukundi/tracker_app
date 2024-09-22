@@ -12,9 +12,9 @@ class _StatScreenState extends State<StatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Graphiques'),
+        title: const Text('Graphiques'),
       ),
-      body: Center(
+      body: const Center(
         child: Text('ici les graphiques '),
       ),
     );

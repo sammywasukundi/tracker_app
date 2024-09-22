@@ -21,8 +21,37 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  Future signIn() async {
+  // Méthode de validation des champs
+  bool _validateFields() {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      // Afficher un message d'erreur ou un dialog si un champ est vide
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: Text('Erreur'),
+            content: Text('Veuillez remplir tous les champs.'),
+            actions: <Widget>[
+              TextButton(
+                child: Text('OK'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          );
+        },
+      );
+      return false;
+    }
+    return true;
+  }
 
+  Future signIn() async {
+    // Valider les champs avant de tenter de se connecter
+    if (!_validateFields()) return;
+
+    // Afficher un indicateur de chargement
     showDialog(
       context: context,
       builder: (context) {
@@ -33,12 +62,34 @@ class _LoginPageState extends State<LoginPage> {
       },
     );
 
-    await FirebaseAuth.instance.signInWithEmailAndPassword(
-      email: _emailController.text.trim(),
-      password: _passwordController.text.trim()
-    );
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+      Navigator.of(context).pop(); // Fermer le dialog de chargement
+    } on FirebaseAuthException catch (e) {
+      Navigator.of(context).pop(); // Fermer le dialog de chargement
 
-    Navigator.of(context).pop();
+      // Afficher un message d'erreur si la connexion échoue
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: Text('Erreur de connexion'),
+            content: Text(e.message ?? 'Échec de la connexion. Veuillez réessayer.'),
+            actions: <Widget>[
+              TextButton(
+                child: Text('OK'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          );
+        },
+      );
+    }
   }
 
   @override
@@ -58,9 +109,9 @@ class _LoginPageState extends State<LoginPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                //Bienvenue
+                // Bienvenue
                 Image.asset(
-                  'assets/auth/login1.png',
+                  'assets/auth/register.png',
                   height: 135,
                   width: 135,
                 ),
@@ -79,7 +130,7 @@ class _LoginPageState extends State<LoginPage> {
                 SizedBox(
                   height: 30,
                 ),
-                //email
+                // email
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 25.0),
                   child: Container(
@@ -99,7 +150,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
                 SizedBox(height: 10,),
-                //pwd
+                // pwd
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 25.0),
                   child: Container(
@@ -119,7 +170,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                 ),
-                //forgot pwd
+                // forgot pwd
                 SizedBox(height: 10,),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 25.0),
@@ -148,7 +199,7 @@ class _LoginPageState extends State<LoginPage> {
                     ],
                   ),
                 ),
-                //connexion
+                // connexion
                 SizedBox(height: 10,),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 25.0),
@@ -174,7 +225,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
                 SizedBox(height: 25,),
-                //inscription
+                // inscription
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [

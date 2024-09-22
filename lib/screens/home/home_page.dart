@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:tracker_app/screens/home/pages/stat_screen.dart';
 //import 'package:tracker_app/screens/widgets/widgets_home.dart';
 
@@ -120,21 +119,10 @@ class _HomePageState extends State<HomePage> {
                 icon: Icon(
                   Icons.logout,
                   color: Colors.white,
-                  size: 35,
+                  size: 30,
                 ),
                 onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) {
-                      return Center(
-                          child: SpinKitWave(
-                        color: Colors.blueAccent[100],
-                        size: 35,
-                      ));
-                    },
-                  );
                   FirebaseAuth.instance.signOut(); // Sign out action
-                  Navigator.of(context).pop();
                 },
               ),
             ),
