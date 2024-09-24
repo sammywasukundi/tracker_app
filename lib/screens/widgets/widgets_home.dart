@@ -155,4 +155,48 @@ Widget wTabHome(BuildContext context) {
 }
 
 
+// Padding(
+//                     padding: const EdgeInsets.symmetric(
+//                         horizontal: 16.0, vertical: 16.0),
+//                       child: Image.asset(
+//                         'assets/auth/homeScreen.png',
+//                         height: 340,
+//                         width: 340,
+//                         fit: BoxFit.contain,
+//                       ),
+//                     ),
+//                 SizedBox(
+//                   height: 20,
+//                 ),
+//                 Padding(
+//                   padding: const EdgeInsets.all(16.0),
+//                   child: Text(
+//                       'Suivez vos revenus, enregistrez vos dépenses,\nconsultez des graphes visuels de vos habitudes \nde dépense et prenez le contrôle de votre argent'),
+//                 ),
+//                 SizedBox(
+//                   height: 35,
+//                 ),
+//                 Padding(
+//                   padding: const EdgeInsets.symmetric(horizontal: 25.0),
+//                   child: GestureDetector(
+//                     onTap: () => FormBudget(),
+//                     child: Container(
+//                       padding: EdgeInsets.all(12),
+//                       decoration: BoxDecoration(
+//                           color: Colors.blueAccent[400],
+//                           borderRadius: BorderRadius.circular(12)),
+//                       child: Center(
+//                         child: Text(
+//                           'Commençons !',
+//                           style: TextStyle(
+//                               color: Colors.white,
+//                               fontWeight: FontWeight.bold,
+//                               fontSize: 15),
+//                         ),
+//                       ),
+//                     ),
+//                   ),
+//                 ),
+
+
 

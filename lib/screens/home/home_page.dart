@@ -1,9 +1,10 @@
-// ignore_for_file: prefer_const_constructors, prefer_const_literals_to_create_immutables
+// ignore_for_file: prefer_const_constructors, prefer_const_literals_to_create_immutables, sort_child_properties_last
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:tracker_app/screens/home/pages/stat_screen.dart';
+import 'package:tracker_app/screens/home/pages/welcome.dart';
 //import 'package:tracker_app/screens/widgets/widgets_home.dart';
 
 class HomePage extends StatefulWidget {
@@ -45,6 +46,9 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     User? user = FirebaseAuth.instance.currentUser;
+
+    //String bgImage = 'bgImage.png';
+    //String homeScreen = 'homeExpense1.png';
 
     return Scaffold(
       appBar: PreferredSize(
@@ -119,10 +123,73 @@ class _HomePageState extends State<HomePage> {
                 icon: Icon(
                   Icons.logout,
                   color: Colors.white,
-                  size: 30,
+                  size: 35,
                 ),
                 onPressed: () {
-                  FirebaseAuth.instance.signOut(); // Sign out action
+                  // Appel de showDialog pour confirmation de déconnexion
+                  showDialog(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        //title: Center(child: Text("Déconnexion")),
+                        content: Text(
+                          "Voulez-vous vous déconnecter ?",
+                          style: TextStyle(
+                              fontWeight: FontWeight.w400, fontSize: 15),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              // Si l'utilisateur annule
+                              Navigator.of(context).pop(); // Fermer le dialogue
+                            },
+                            child: Text(
+                              "Non",
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.redAccent),
+                            ),
+                            style: TextButton.styleFrom(
+                              shape:
+                                  const StadiumBorder(), // Forme de bouton en stade
+                              side: BorderSide(
+                                // Ajout d'une bordure
+                                color: Colors
+                                    .redAccent, // Couleur de la bordure (verte)
+                                width: 0.5, // Épaisseur de la bordure
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              // Si l'utilisateur confirme la déconnexion
+                              FirebaseAuth.instance
+                                  .signOut(); // Action de déconnexion
+                              Navigator.of(context).pop(); // Fermer le dialogue
+                            },
+                            child: Text(
+                              "Oui",
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.greenAccent),
+                            ),
+                            style: TextButton.styleFrom(
+                              shape:
+                                  const StadiumBorder(), // Forme de bouton en stade
+                              side: BorderSide(
+                                // Ajout d'une bordure
+                                color: Colors
+                                    .green, // Couleur de la bordure (verte)
+                                width: 0.5, // Épaisseur de la bordure
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
                 },
               ),
             ),
@@ -130,36 +197,40 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
       body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-          child: IndexedStack(
-            index: _selectedIndex,
-            children: [
-              // Home Page Content
-              FutureBuilder(
-                future: getDocId(),
-                builder: (context, snapshot) {
-                  return ListView.builder(
-                    itemCount: docIDs.length,
-                    itemBuilder: (context, index) {
-                      return Padding(
-                        padding: const EdgeInsets.all(6.0),
-                        child: ListTile(
-                          title: Text('User ID: ${docIDs[index]}'),
-                          tileColor: Colors.grey[300],
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
-              // StatScreen
-              StatScreen(),
-              // Other pages (placeholders for now)
-              Center(child: Text("Transactions Page")),
-              Center(child: Text("Categories Page")),
-              Center(child: Text("Settings Page")),
-            ],
+        child: Container(
+          color: Colors.transparent,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            child: IndexedStack(
+              index: _selectedIndex,
+              children: [
+                WelcomeScreen(),
+                // Home Page Content
+                // FutureBuilder(
+                //   future: getDocId(),
+                //   builder: (context, snapshot) {
+                //     return ListView.builder(
+                //       itemCount: docIDs.length,
+                //       itemBuilder: (context, index) {
+                //         return Padding(
+                //           padding: const EdgeInsets.all(6.0),
+                //           child: ListTile(
+                //             title: GetUserName(documentId: docIDs[index]),
+                //             tileColor: Colors.grey[300],
+                //           ),
+                //         );
+                //       },
+                //     );
+                //   },
+                // ),
+                // StatScreen
+                StatScreen(),
+                // Other pages (placeholders for now)
+                Center(child: Text("Transactions Page")),
+                Center(child: Text("Categories Page")),
+                Center(child: Text("settings Page")),
+              ],
+            ),
           ),
         ),
       ),

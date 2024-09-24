@@ -11,11 +11,17 @@ class _StatScreenState extends State<StatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Graphiques'),
-      ),
-      body: const Center(
-        child: Text('ici les graphiques '),
+      body: Center(
+        child: Container(
+          decoration: const BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('assets/bgImage.png'),
+              fit: BoxFit.cover,
+              opacity: 0.2
+            )
+          ),
+          child: const Text('ici les graphiques ')
+        ),
       ),
     );
   }

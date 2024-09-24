@@ -3,7 +3,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:tracker_app/screens/auth/forgot_pwd_page.dart';
 //import 'package:flutter_spinkit/flutter_spinkit.dart';
 
@@ -101,6 +100,8 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+
+    String app = 'app.png';
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -111,21 +112,17 @@ class _LoginPageState extends State<LoginPage> {
               children: <Widget>[
                 // Bienvenue
                 Image.asset(
-                  'assets/auth/register.png',
-                  height: 135,
-                  width: 135,
+                  'assets/auth/$app',
+                  height: 160,
+                  width: 160,
                 ),
-                SizedBox(height: 10,),
-                Text(
-                  'Bonjour encore',
-                  style: GoogleFonts.bebasNeue(fontWeight: FontWeight.w400, fontSize: 35),
-                ),
-                SizedBox(
-                  height: 10,
-                ),
+                SizedBox(height: 35,),
                 Text(
                   'Connectez-vous sur Tracker_app',
-                  style: TextStyle(fontSize: 18),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500
+                  ),
                 ),
                 SizedBox(
                   height: 30,
