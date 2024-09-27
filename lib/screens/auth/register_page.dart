@@ -1,6 +1,5 @@
 // ignore_for_file: prefer_const_constructors
 
-
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -104,6 +103,7 @@ class _RegisterPageState extends State<RegisterPage> {
             _firstName.text.trim(),
             _lastName.text.trim(),
             _emailController.text.trim(),
+            _passwordController.text.trim(),
           );
           widget.showLoginPage();
         } else {
@@ -115,11 +115,14 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
-  Future addUserDetails(String firstName, String lastName, String email) async {
+  Future addUserDetails(
+      String firstName, String lastName, String email, String password) async {
     await FirebaseFirestore.instance.collection('users').add({
       'first name': firstName,
       'last name': lastName,
       'email': email,
+      'password': password,
+      'createdAt': FieldValue.serverTimestamp(), // Timestamp du serveur
     });
   }
 

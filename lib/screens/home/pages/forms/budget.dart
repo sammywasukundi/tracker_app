@@ -1,7 +1,10 @@
 // ignore_for_file: prefer_const_constructors
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:tracker_app/screens/home/pages/forms/category.dart';
 
 class FormBudget extends StatefulWidget {
   const FormBudget({super.key});
@@ -14,6 +17,33 @@ class _FormBudgetState extends State<FormBudget> {
   final _formKey = GlobalKey<FormState>();
   DateTime? _dateDebut;
   DateTime? _dateFin;
+  final _montant = TextEditingController();
+  final _nomBudget = TextEditingController();
+  final _descriptionBudget = TextEditingController();
+
+  Future<void> addBudgetWithUserReference(
+      String userId,
+      DateTime dateDebut,
+      DateTime dateFin,
+      int montant,
+      String nomBudget,
+      String descriptionBudget) async {
+    try {
+      // Création de la collection et ajout du document
+      await FirebaseFirestore.instance.collection('budget').add({
+        'userId': userId, // Référence à l'utilisateur
+        'dateDebut': dateDebut,
+        'dateFin': dateFin,
+        'montant': montant,
+        'nomBudget': nomBudget,
+        'descriptionBudget': descriptionBudget,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      print("Budget ajouté avec succès !");
+    } catch (e) {
+      print("Erreur lors de l'ajout du budget : $e");
+    }
+  }
 
   // Méthode pour afficher le DatePicker et sélectionner la date
   Future<void> _selectDate(BuildContext context, DateTime? initialDate,
@@ -66,11 +96,10 @@ class _FormBudgetState extends State<FormBudget> {
                           hintText: 'Date de début',
                           hintStyle: TextStyle(
                               color: Colors.grey, fontWeight: FontWeight.w300),
-                              suffixIcon: Icon(
-                                Icons.calendar_month,
-                                color: Colors.grey,
-                              )
-                            ),
+                          suffixIcon: Icon(
+                            Icons.calendar_month,
+                            color: Colors.grey,
+                          )),
                       readOnly: true,
                       onTap: () =>
                           _selectDate(context, _dateDebut, (selectedDate) {
@@ -104,10 +133,10 @@ class _FormBudgetState extends State<FormBudget> {
                           hintText: 'Date de fin',
                           hintStyle: TextStyle(
                               color: Colors.grey, fontWeight: FontWeight.w300),
-                              suffixIcon: Icon(
-                                Icons.calendar_month,
-                                color: Colors.grey,
-                              )                            ),
+                          suffixIcon: Icon(
+                            Icons.calendar_month,
+                            color: Colors.grey,
+                          )),
                       readOnly: true,
                       onTap: () =>
                           _selectDate(context, _dateFin, (selectedDate) {
@@ -135,6 +164,7 @@ class _FormBudgetState extends State<FormBudget> {
                     child: Padding(
                         padding: const EdgeInsets.only(left: 8.0),
                         child: TextFormField(
+                          controller: _montant,
                           keyboardType:
                               TextInputType.number, // Clavier numérique
                           inputFormatters: <TextInputFormatter>[
@@ -149,14 +179,56 @@ class _FormBudgetState extends State<FormBudget> {
                               fontWeight: FontWeight.w300,
                             ),
                             suffixIcon: Icon(
-                              Icons
-                                .money,
+                              Icons.money,
                               color: Colors.grey,
                             ), // Icône de montant en suffixe
                           ),
                           validator: (val) => val == null || val.isEmpty
                               ? 'Montant requis'
                               : null,
+                        ))),
+                SizedBox(height: 15),
+                Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Padding(
+                        padding: const EdgeInsets.only(left: 8.0),
+                        child: TextFormField(
+                          controller: _nomBudget,
+                          keyboardType: TextInputType.text, // Clavier numérique
+                          decoration: InputDecoration(
+                            border: InputBorder.none,
+                            hintText: 'Nom d\'affichage du budget',
+                            hintStyle: TextStyle(
+                              color: Colors.grey,
+                              fontWeight: FontWeight.w300,
+                            ),
+                          ),
+                          validator: (val) => val == null || val.isEmpty
+                              ? 'Nom d\'affichage du budget requis'
+                              : null,
+                        ))),
+                SizedBox(height: 15),
+                Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Padding(
+                        padding: const EdgeInsets.only(left: 8.0),
+                        child: TextFormField(
+                          controller: _descriptionBudget,
+                          keyboardType: TextInputType.text, // Clavier numérique
+                          decoration: InputDecoration(
+                            border: InputBorder.none,
+                            hintText: 'Description',
+                            hintStyle: TextStyle(
+                              color: Colors.grey,
+                              fontWeight: FontWeight.w300,
+                            ),
+                          ),
                         ))),
                 SizedBox(
                   height: 15,
@@ -173,41 +245,76 @@ class _FormBudgetState extends State<FormBudget> {
                     // Le bouton à droite
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            Colors.blueAccent, // Couleur de fond bleue
+                        backgroundColor: Colors.blueAccent,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                              4), // Petite bordure arrondie
+                          borderRadius: BorderRadius.circular(4),
                         ),
-                        padding: EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 12), // Padding interne
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       ),
-                      onPressed: () {
+                      onPressed: () async {
                         if (_formKey.currentState!.validate()) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Formulaire validé !')),
-                          );
+                          try {
+                            // Récupérer l'utilisateur connecté
+                            User? user = FirebaseAuth.instance.currentUser;
+
+                            if (user != null) {
+                              // Récupérer le userId (uid de l'utilisateur authentifié)
+                              String userId = user.uid;
+
+                              // Ajouter le budget dans Firestore avec le userId
+                              await addBudgetWithUserReference(
+                                userId, // Passer le userId ici
+                                _dateDebut!,
+                                _dateFin!,
+                                int.parse(_montant.text),
+                                _nomBudget.text,
+                                _descriptionBudget.text,
+                              );
+
+                              // Afficher un message de validation
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text(
+                                        'Formulaire validé et budget ajouté !')),
+                              );
+
+                              // Naviguer vers la page des catégories
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => CategoryScreen(),
+                                ),
+                              );
+                            } else {
+                              // L'utilisateur n'est pas authentifié
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text('Utilisateur non connecté')),
+                              );
+                            }
+                          } catch (e) {
+                            // Gérer les erreurs
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Erreur : $e')),
+                            );
+                          }
                         }
                       },
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16.0),
                         child: Text(
-                          'Soumettre',
+                          'Créer le budget',
                           style: TextStyle(
-                              color: Colors.white, // Couleur du texte
-                              fontWeight: FontWeight.w500,
-                              fontSize: 16),
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 16,
+                          ),
                         ),
                       ),
                     ),
                   ],
                 ),
-                // SizedBox(height: 15,),
-                // Image.asset(
-                //   'assets/home/budget.png',
-                //   height: 160,
-                //   width: 160,
-                // ),
               ],
             ),
           ),

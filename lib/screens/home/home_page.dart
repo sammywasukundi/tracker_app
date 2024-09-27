@@ -1,11 +1,14 @@
 // ignore_for_file: prefer_const_constructors, prefer_const_literals_to_create_immutables, sort_child_properties_last
 
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:tracker_app/screens/home/pages/stat_screen.dart';
-import 'package:tracker_app/screens/home/pages/welcome.dart';
-//import 'package:tracker_app/screens/widgets/widgets_home.dart';
+import 'package:tracker_app/screens/home/pages/forms/add_category.dart';
+import 'package:tracker_app/screens/home/pages/forms/expense.dart';
+import 'package:tracker_app/screens/home/main_screen.dart';
+import 'package:tracker_app/screens/home/pages/graphs/graph.dart';
+//import 'package:tracker_app/screens/home/pages/welcome.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -17,6 +20,49 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   String? imageUrl;
   int _selectedIndex = 0; // to track the selected tab
+  String? firstName;
+
+  void _getUserProfileImage() async {
+    User? user = FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      try {
+        // Construis le chemin de l'image (supposons que l'image est nommée par l'userId)
+        String imagePath = 'image/${user.uid}.png';
+
+        // Récupérer la référence à l'image dans Firebase Storage
+        Reference ref = FirebaseStorage.instance.ref().child(imagePath);
+
+        // Obtenir l'URL de téléchargement
+        String downloadUrl = await ref.getDownloadURL();
+
+        setState(() {
+          imageUrl = downloadUrl; // Stocker l'URL pour l'afficher
+        });
+      } catch (e) {
+        print('Erreur lors de la récupération de l\'URL de l\'image : $e');
+      }
+    }
+  }
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  void _navigateToExpenseScreen() {
+    try {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => ExpenseScreen(),
+        ),
+      );
+    } catch (e) {
+      print('Error navigating to ExpenseScreen: $e');
+      // Optionally, show a message to the user or log the error
+    }
+  }
 
   List<String> docIDs = [];
 
@@ -34,26 +80,18 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     getDocId(); // Fetch document IDs on initialization
-  }
-
-  // Bottom navigation bar tap handling
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    _getUserProfileImage();
   }
 
   @override
   Widget build(BuildContext context) {
     User? user = FirebaseAuth.instance.currentUser;
 
-    //String bgImage = 'bgImage.png';
-    //String homeScreen = 'homeExpense1.png';
-
     return Scaffold(
       appBar: PreferredSize(
         preferredSize: Size.fromHeight(70.0),
         child: AppBar(
+          automaticallyImplyLeading: false,
           backgroundColor: Colors.blueAccent,
           elevation: 4.0,
           title: Padding(
@@ -84,7 +122,7 @@ class _HomePageState extends State<HomePage> {
                             : Icon(
                                 Icons.person,
                                 size: 40,
-                              ),
+                              ), // Affiche l'icône par défaut si aucune image n'est trouvée
                       ),
                     ),
                   ],
@@ -96,7 +134,8 @@ class _HomePageState extends State<HomePage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Bienvenue, ${user?.displayName ?? 'Utilisateur'}!',
+                      //'Bienvenue, $firstName!',
+                      'Bienvenue sur Tracker_app',
                       style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
@@ -143,13 +182,6 @@ class _HomePageState extends State<HomePage> {
                               // Si l'utilisateur annule
                               Navigator.of(context).pop(); // Fermer le dialogue
                             },
-                            child: Text(
-                              "Non",
-                              style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.redAccent),
-                            ),
                             style: TextButton.styleFrom(
                               shape:
                                   const StadiumBorder(), // Forme de bouton en stade
@@ -160,6 +192,13 @@ class _HomePageState extends State<HomePage> {
                                 width: 0.5, // Épaisseur de la bordure
                               ),
                             ),
+                            child: Text(
+                              "Non",
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.redAccent),
+                            ),
                           ),
                           TextButton(
                             onPressed: () {
@@ -168,13 +207,6 @@ class _HomePageState extends State<HomePage> {
                                   .signOut(); // Action de déconnexion
                               Navigator.of(context).pop(); // Fermer le dialogue
                             },
-                            child: Text(
-                              "Oui",
-                              style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.greenAccent),
-                            ),
                             style: TextButton.styleFrom(
                               shape:
                                   const StadiumBorder(), // Forme de bouton en stade
@@ -184,6 +216,13 @@ class _HomePageState extends State<HomePage> {
                                     .green, // Couleur de la bordure (verte)
                                 width: 0.5, // Épaisseur de la bordure
                               ),
+                            ),
+                            child: Text(
+                              "Oui",
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.greenAccent),
                             ),
                           ),
                         ],
@@ -204,7 +243,7 @@ class _HomePageState extends State<HomePage> {
             child: IndexedStack(
               index: _selectedIndex,
               children: [
-                WelcomeScreen(),
+                MainScreen(),
                 // Home Page Content
                 // FutureBuilder(
                 //   future: getDocId(),
@@ -224,10 +263,10 @@ class _HomePageState extends State<HomePage> {
                 //   },
                 // ),
                 // StatScreen
-                StatScreen(),
+                GraphScreen(),
                 // Other pages (placeholders for now)
                 Center(child: Text("Transactions Page")),
-                Center(child: Text("Categories Page")),
+                AddCategory(),
                 Center(child: Text("settings Page")),
               ],
             ),
@@ -245,7 +284,7 @@ class _HomePageState extends State<HomePage> {
             label: 'Graphiques',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.business),
+            icon: Icon(Icons.money),
             label: 'Transactions',
           ),
           BottomNavigationBarItem(

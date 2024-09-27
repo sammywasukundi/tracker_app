@@ -8,11 +8,14 @@ import 'package:tracker_app/screens/auth/forgot_pwd_page.dart';
 
 class LoginPage extends StatefulWidget {
   final VoidCallback showRegisterPage;
-  const LoginPage({super.key, required this.showRegisterPage}) ;
+
+  // Constructeur corrigé
+  const LoginPage({super.key, required this.showRegisterPage});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
+
 
 class _LoginPageState extends State<LoginPage> {
 
