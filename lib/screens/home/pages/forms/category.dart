@@ -1,28 +1,221 @@
-// ignore_for_file: prefer_const_constructors
+// ignore_for_file: prefer_const_constructors, prefer_if_null_operators
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:tracker_app/screens/home/home_page.dart';
 
 class CategoryScreen extends StatefulWidget {
+  const CategoryScreen({super.key});
+
   @override
   _CategoryScreenState createState() => _CategoryScreenState();
 }
 
 class _CategoryScreenState extends State<CategoryScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _sourceRevenu = TextEditingController();
+  final _montantRevenu = TextEditingController();
 
+  List<Map<String, dynamic>> revenusList = [];
+  int revenusCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchRevenus();
+  }
+
+  Future<void> fetchRevenus() async {
+    QuerySnapshot snapshot =
+        await FirebaseFirestore.instance.collection('Revenus').get();
+    setState(() {
+      revenusList = snapshot.docs
+          .map((doc) => doc.data() as Map<String, dynamic>)
+          .toList();
+      revenusCount = revenusList.length; // Met à jour le nombre de revenus
+    });
+  }
+
+  Future<void> addRevenu(String source, double montant, String userId) async {
+    DocumentReference docRef =
+        await FirebaseFirestore.instance.collection('Revenus').add({
+      'source': source,
+      'montant': montant,
+      'userId': userId,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    // Ajouter à la liste et mettre à jour l'état
+    setState(() {
+      revenusList.add({
+        'id': docRef.id,
+        'source': source,
+        'montant': montant,
+      });
+      revenusCount = revenusList.length; // Mettre à jour le nombre
+    });
+  }
+
+// Supprimer le revenu de la collection
+  Future<void> deleteRevenu(String revenuId) async {
+    await FirebaseFirestore.instance
+        .collection('Revenus')
+        .doc(revenuId)
+        .delete();
+
+    setState(() {
+      revenusList.removeWhere((revenu) => revenu['id'] == revenuId);
+      revenusCount = revenusList.length; // Mettre à jour le nombre
+    });
+  }
+
+  //update un revenu
+  Future<void> updateRevenu(
+      String revenuId, String newSource, double newMontant) async {
+    await FirebaseFirestore.instance
+        .collection('Revenus')
+        .doc(revenuId)
+        .update({
+      'source': newSource,
+      'montant': newMontant,
+    });
+
+    // Mettre à jour localement les données si vous les stockez dans une liste
+    setState(() {
+      int index = revenusList.indexWhere((revenu) => revenu['id'] == revenuId);
+      if (index != -1) {
+        revenusList[index]['source'] = newSource;
+        revenusList[index]['montant'] = newMontant;
+      }
+    });
+  }
+
+  //formulaire pour update un revenu
+  void _showUpdateFormDialog(
+      BuildContext context, String revenuId, String source, double montant) {
+    TextEditingController _sourceController =
+        TextEditingController(text: source);
+    TextEditingController _montantController =
+        TextEditingController(text: montant.toString());
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Modifier le revenu'),
+          content: Form(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(1),
+                  ),
+                  child: TextFormField(
+                    controller: _sourceController,
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      hintText: 'Description/Soucre',
+                      hintStyle: TextStyle(
+                        color: Colors.grey,
+                        fontWeight: FontWeight.w200,
+                      ),
+                      suffixIcon: Icon(
+                        Icons.source,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  height: 10,
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(1),
+                  ),
+                  child: TextFormField(
+                    controller: _montantController,
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      hintText: 'Montant pour le révenu',
+                      hintStyle: TextStyle(
+                        color: Colors.grey,
+                        fontWeight: FontWeight.w200,
+                      ),
+                      suffixIcon: Icon(
+                        Icons.money,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop(); // Fermer la boîte de dialogue
+                },
+                child: Text(
+                  'Annuler',
+                  style: TextStyle(
+                    color: Colors.redAccent,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 16,
+                  ),
+                )),
+            TextButton(
+              onPressed: () async {
+                // Appel de la fonction pour mettre à jour le revenu
+                await updateRevenu(revenuId, _sourceController.text,
+                    double.parse(_montantController.text));
+
+                // Fermer la boîte de dialogue
+                Navigator.of(context).pop();
+
+                // Afficher un message de succès
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Revenu mis à jour avec succès !')),
+                );
+              },
+              child: Container(
+                padding: EdgeInsets.all(12),
+                child: Text(
+                  'Mettre à jour',
+                  style: TextStyle(
+                    color: Colors.blueAccent,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // formulaire pour ajouter un revenu
   void _showCategoryFormDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Ajouter une catégorie'),
+          title: Text('Ajouter un révenu'),
           content: Form(
             key: _formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                // Nom de la catégorie
+                // Nom du revenu
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.grey[200],
@@ -31,26 +224,28 @@ class _CategoryScreenState extends State<CategoryScreen> {
                   child: Padding(
                     padding: const EdgeInsets.only(left: 8.0),
                     child: TextFormField(
+                      controller: _sourceRevenu,
+                      keyboardType: TextInputType.text,
                       decoration: InputDecoration(
                         border: InputBorder.none,
-                        hintText: 'Nom de la catégorie',
+                        hintText: 'Description/Soucre',
                         hintStyle: TextStyle(
                           color: Colors.grey,
-                          fontWeight: FontWeight.w300,
+                          fontWeight: FontWeight.w200,
                         ),
                         suffixIcon: Icon(
-                          Icons.category,
+                          Icons.source,
                           color: Colors.grey,
                         ),
                       ),
                       validator: (val) => val == null || val.isEmpty
-                          ? 'Nom de la catégorie requis'
+                          ? 'Nom du révenu requis'
                           : null,
                     ),
                   ),
                 ),
-                SizedBox(height: 15),
-                // Description de la dépense
+                SizedBox(height: 10),
+                // montant
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.grey[200],
@@ -59,21 +254,22 @@ class _CategoryScreenState extends State<CategoryScreen> {
                   child: Padding(
                     padding: const EdgeInsets.only(left: 8.0),
                     child: TextFormField(
+                      controller: _montantRevenu,
+                      keyboardType: TextInputType.numberWithOptions(),
                       decoration: InputDecoration(
                         border: InputBorder.none,
-                        hintText: 'Description de la catégorie',
+                        hintText: 'Montant pour le révenu',
                         hintStyle: TextStyle(
                           color: Colors.grey,
-                          fontWeight: FontWeight.w300,
+                          fontWeight: FontWeight.w200,
                         ),
                         suffixIcon: Icon(
-                          Icons.description,
+                          Icons.money,
                           color: Colors.grey,
                         ),
                       ),
-                      validator: (val) => val == null || val.isEmpty
-                          ? 'Description requise'
-                          : null,
+                      validator: (val) =>
+                          val == null || val.isEmpty ? 'Montant requis' : null,
                     ),
                   ),
                 ),
@@ -92,19 +288,44 @@ class _CategoryScreenState extends State<CategoryScreen> {
                   style: TextStyle(
                     color: Colors.redAccent,
                     fontWeight: FontWeight.w500,
-                    fontSize: 18,
+                    fontSize: 16,
                   ),
                 ),
               ),
             ),
             GestureDetector(
-              onTap: () {
+              onTap: () async {
                 if (_formKey.currentState!.validate()) {
-                  // Logique pour ajouter la catégorie
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Catégorie ajoutée !')),
-                  );
-                  Navigator.of(context).pop();
+                  // Récupération des valeurs du formulaire
+                  String source = _sourceRevenu.text;
+                  double montant = double.parse(_montantRevenu.text);
+
+                  // Récupérer l'ID de l'utilisateur actuel
+                  User? user = FirebaseAuth.instance.currentUser;
+                  String userId = user!.uid;
+
+                  if (userId.isNotEmpty) {
+                    // Appel de la fonction pour ajouter le revenu
+                    await addRevenu(source, montant, userId);
+
+                    // Afficher un message de succès
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Revenu ajouté avec succès !')),
+                    );
+
+                    // Réinitialiser les champs du formulaire
+                    _sourceRevenu.clear();
+                    _montantRevenu.clear();
+
+                    // Fermer le formulaire
+                    Navigator.of(context).pop();
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content: Text(
+                              'Veuillez vous connecter pour ajouter un revenu.')),
+                    );
+                  }
                 }
               },
               child: Container(
@@ -114,7 +335,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                   style: TextStyle(
                     color: Colors.blueAccent,
                     fontWeight: FontWeight.w500,
-                    fontSize: 18,
+                    fontSize: 16,
                   ),
                 ),
               ),
@@ -148,13 +369,29 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Revenu disponible',
-                      style: TextStyle(
-                        fontSize: 18.0,
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8.0),
+                      child: Column(children: [
+                        Text(
+                          'Revenu disponible',
+                          style: TextStyle(
+                            fontSize: 18.0,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                        SizedBox(
+                          height: 5,
+                        ),
+                        Text(
+                          '$revenusCount revenus ajoutés',
+                          style: TextStyle(
+                            fontSize: 12.0,
+                            fontWeight: FontWeight.w400,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                      ]),
                     ),
                     IconButton(
                       icon: Icon(
@@ -173,8 +410,9 @@ class _CategoryScreenState extends State<CategoryScreen> {
               // Première ListView
               Expanded(
                 child: ListView.builder(
-                  itemCount: 2,
-                  itemBuilder: (context, int i) {
+                  itemCount: revenusList.length,
+                  itemBuilder: (context, int index) {
+                    var revenu = revenusList[index];
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8.0),
                       child: Container(
@@ -187,81 +425,86 @@ class _CategoryScreenState extends State<CategoryScreen> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              // Colonne pour Category expense et montant
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Row(
-                                    children: [
-                                      IconButton(
-                                        icon: Icon(
-                                          Icons.add,
-                                          color: Colors.blueAccent,
-                                        ),
-                                        onPressed: () {
-                                          _showCategoryFormDialog(context);
-                                        },
-                                      ),
-                                      const SizedBox(
-                                        width: 12,
-                                      ),
-                                      Text(
-                                        'Category expense',
-                                        style: TextStyle(
-                                          fontSize: 14.0,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurface,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
+                                  Text(
+                                    revenu['source'],
+                                    style: TextStyle(
+                                      fontSize: 14.0,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
-                                  Row(
-                                    children: [
-                                      Text(
-                                        'Montant prévus: ',
-                                        style: TextStyle(
-                                          fontSize: 14.0,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurface,
-                                          fontWeight: FontWeight.w400,
-                                        ),
-                                      ),
-                                      const SizedBox(
-                                        width: 12,
-                                      ),
-                                      Text(
-                                        '50 USD',
-                                        style: TextStyle(
-                                          fontSize: 14.0,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurface,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
+                                  SizedBox(height: 12),
+                                  Text(
+                                    'Montant : ${revenu['montant']} USD',
+                                    style: TextStyle(
+                                      fontSize: 14.0,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface,
+                                      fontWeight: FontWeight.w400,
+                                    ),
                                   ),
                                 ],
                               ),
-                              // Colonne pour la date et bouton de modification
-                              Column(
+                              // Colonne pour les actions (modifier/supprimer)
+                              Row(
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
-                                  const SizedBox(
-                                      height:
-                                          8), // Espace entre la date et le bouton
                                   IconButton(
-                                    icon: Icon(
-                                      Icons.edit,
-                                      color: Colors.orangeAccent,
-                                    ),
+                                    icon: Icon(Icons.remove,
+                                        color: Colors.redAccent),
+                                    onPressed: () async {
+                                      try {
+                                        // Récupérer l'ID du revenu à supprimer
+                                        String revenuId = revenu['id'];
+
+                                        // Appel de la fonction pour supprimer le revenu
+                                        await deleteRevenu(revenuId);
+
+                                        // Afficher un message de succès
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                              content: Text(
+                                                  'Revenu supprimé avec succès !')),
+                                        );
+                                      } catch (e) {
+                                        // En cas d'erreur
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                              content: Text(
+                                                  'Erreur lors de la suppression du revenu : $e')),
+                                        );
+                                      }
+                                    },
+                                  ),
+                                  SizedBox(width: 4),
+                                  IconButton(
+                                    icon: Icon(Icons.edit,
+                                        color: Colors.orangeAccent),
                                     onPressed: () {
-                                      // Action de modification
-                                      //_showEditDialog(context);
-                                      _showCategoryFormDialog(context);
+                                      // Vérifiez si les champs existent avant d'appeler la fonction
+                                      String id =
+                                          revenu['id'] ?? 'ID non disponible';
+                                      String source =
+                                          revenu['source'] ?? 'Source inconnue';
+                                      double montant = revenu['montant'] != null
+                                          ? revenu['montant']
+                                          : 0.0; // Valeur par défaut pour montant
+
+                                      // Appel de la méthode pour afficher le formulaire de mise à jour
+                                      _showUpdateFormDialog(
+                                        context,
+                                        id, // ID du revenu à modifier
+                                        source, // Source actuelle du revenu
+                                        montant, // Montant actuel du revenu
+                                      );
                                     },
                                   ),
                                 ],
@@ -275,7 +518,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 ),
               ),
               // Espacement entre les deux ListViews
-              SizedBox(height: 16.0), // Espace vertical entre les deux listes
+              SizedBox(height: 6.0), // Espace vertical entre les deux listes
 
               // Deuxième titre et ListView
               Padding(
@@ -283,12 +526,30 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Dépenses par catégorie',
-                      style: TextStyle(
-                        fontSize: 18.0,
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.onSurface,
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8.0),
+                      child: Column(
+                        children: [
+                          Text(
+                            'Dépenses par catégorie',
+                            style: TextStyle(
+                              fontSize: 18.0,
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                          SizedBox(
+                            height: 5,
+                          ),
+                          Text(
+                            '0 catégories de dépenses ajoutés',
+                            style: TextStyle(
+                              fontSize: 12.0,
+                              fontWeight: FontWeight.w400,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     IconButton(

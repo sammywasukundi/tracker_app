@@ -15,7 +15,7 @@ class _AddCategoryState extends State<AddCategory> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Ajouter une catégorie'),
+          title: const Text('Ajouter une catégorie'),
           content: Form(
             key: _formKey,
             child: Column(
@@ -30,7 +30,7 @@ class _AddCategoryState extends State<AddCategory> {
                   child: Padding(
                     padding: const EdgeInsets.only(left: 8.0),
                     child: TextFormField(
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         border: InputBorder.none,
                         hintText: 'Nom de la catégorie',
                         hintStyle: TextStyle(
@@ -48,7 +48,7 @@ class _AddCategoryState extends State<AddCategory> {
                     ),
                   ),
                 ),
-                SizedBox(height: 15),
+                const SizedBox(height: 15),
                 // Description de la dépense
                 Container(
                   decoration: BoxDecoration(
@@ -58,7 +58,7 @@ class _AddCategoryState extends State<AddCategory> {
                   child: Padding(
                     padding: const EdgeInsets.only(left: 8.0),
                     child: TextFormField(
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         border: InputBorder.none,
                         hintText: 'Description de la catégorie',
                         hintStyle: TextStyle(
@@ -85,12 +85,12 @@ class _AddCategoryState extends State<AddCategory> {
                 Navigator.of(context).pop();
               },
               child: Container(
-                padding: EdgeInsets.all(12),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: Colors.redAccent[100],
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(
+                child: const Text(
                   'Annuler',
                   style: TextStyle(
                     color: Colors.white,
@@ -105,18 +105,18 @@ class _AddCategoryState extends State<AddCategory> {
                 if (_formKey.currentState!.validate()) {
                   // Logique pour ajouter la catégorie
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Catégorie ajoutée !')),
+                    const SnackBar(content: Text('Catégorie ajoutée !')),
                   );
                   Navigator.of(context).pop();
                 }
               },
               child: Container(
-                padding: EdgeInsets.all(12),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: Colors.blueAccent[200],
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(
+                child: const Text(
                   'Ajouter',
                   style: TextStyle(
                     color: Colors.white,
