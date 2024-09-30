@@ -16,10 +16,8 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-
 class _LoginPageState extends State<LoginPage> {
-
-  // text controllers 
+  // text controllers
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
@@ -57,7 +55,8 @@ class _LoginPageState extends State<LoginPage> {
     showDialog(
       context: context,
       builder: (context) {
-        return Center(child: SpinKitWave(
+        return Center(
+            child: SpinKitWave(
           color: Colors.blueAccent[100],
           size: 35,
         ));
@@ -69,7 +68,10 @@ class _LoginPageState extends State<LoginPage> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-      Navigator.of(context).pop(); // Fermer le dialog de chargement
+
+      if (mounted) {
+        Navigator.of(context).pop(); // Fermer le dialog de chargement
+      }
     } on FirebaseAuthException catch (e) {
       Navigator.of(context).pop(); // Fermer le dialog de chargement
 
@@ -79,7 +81,8 @@ class _LoginPageState extends State<LoginPage> {
         builder: (context) {
           return AlertDialog(
             title: Text('Erreur de connexion'),
-            content: Text(e.message ?? 'Échec de la connexion. Veuillez réessayer.'),
+            content:
+                Text(e.message ?? 'Échec de la connexion. Veuillez réessayer.'),
             actions: <Widget>[
               TextButton(
                 child: Text('OK'),
@@ -103,7 +106,6 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-
     String app = 'app.png';
     return Scaffold(
       backgroundColor: Colors.white,
@@ -119,13 +121,12 @@ class _LoginPageState extends State<LoginPage> {
                   height: 160,
                   width: 160,
                 ),
-                SizedBox(height: 35,),
+                SizedBox(
+                  height: 35,
+                ),
                 Text(
                   'Connectez-vous sur Tracker_app',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
                 ),
                 SizedBox(
                   height: 30,
@@ -144,12 +145,18 @@ class _LoginPageState extends State<LoginPage> {
                         keyboardType: TextInputType.emailAddress,
                         controller: _emailController,
                         decoration: InputDecoration(
-                            border: InputBorder.none, hintText: 'Adresse email', hintStyle: TextStyle(color: Colors.grey,fontWeight: FontWeight.w300)),
+                            border: InputBorder.none,
+                            hintText: 'Adresse email',
+                            hintStyle: TextStyle(
+                                color: Colors.grey,
+                                fontWeight: FontWeight.w300)),
                       ),
                     ),
                   ),
                 ),
-                SizedBox(height: 10,),
+                SizedBox(
+                  height: 10,
+                ),
                 // pwd
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 25.0),
@@ -165,13 +172,19 @@ class _LoginPageState extends State<LoginPage> {
                         controller: _passwordController,
                         obscureText: true,
                         decoration: InputDecoration(
-                            border: InputBorder.none, hintText: 'Mot de passe', hintStyle: TextStyle(color: Colors.grey,fontWeight: FontWeight.w300)),
+                            border: InputBorder.none,
+                            hintText: 'Mot de passe',
+                            hintStyle: TextStyle(
+                                color: Colors.grey,
+                                fontWeight: FontWeight.w300)),
                       ),
                     ),
                   ),
                 ),
                 // forgot pwd
-                SizedBox(height: 10,),
+                SizedBox(
+                  height: 10,
+                ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 25.0),
                   child: Row(
@@ -179,14 +192,10 @@ class _LoginPageState extends State<LoginPage> {
                     children: [
                       GestureDetector(
                         onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) {
-                                return ForgotPassword();
-                              }
-                            )
-                          );
+                          Navigator.push(context,
+                              MaterialPageRoute(builder: (context) {
+                            return ForgotPassword();
+                          }));
                         },
                         child: Text(
                           'Mot de passe oublié ?',
@@ -200,7 +209,9 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
                 // connexion
-                SizedBox(height: 10,),
+                SizedBox(
+                  height: 10,
+                ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 25.0),
                   child: GestureDetector(
@@ -208,23 +219,23 @@ class _LoginPageState extends State<LoginPage> {
                     child: Container(
                       padding: EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.blueAccent[400],
-                        borderRadius: BorderRadius.circular(12)
-                      ),
+                          color: Colors.blueAccent[400],
+                          borderRadius: BorderRadius.circular(12)),
                       child: Center(
                         child: Text(
-                        'Se connecter',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w400,
-                          fontSize: 15
+                          'Se connecter',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w400,
+                              fontSize: 15),
                         ),
-                      ),
                       ),
                     ),
                   ),
                 ),
-                SizedBox(height: 25,),
+                SizedBox(
+                  height: 25,
+                ),
                 // inscription
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -234,15 +245,14 @@ class _LoginPageState extends State<LoginPage> {
                       onTap: widget.showRegisterPage,
                       child: Text(
                         '  Inscrivez-vous',
-                          style: TextStyle(
+                        style: TextStyle(
                             color: Colors.blueAccent[400],
-                            fontWeight: FontWeight.w400
-                          ),
+                            fontWeight: FontWeight.w400),
                       ),
                     ),
                   ],
                 )
-              ],  
+              ],
             ),
           ),
         ),

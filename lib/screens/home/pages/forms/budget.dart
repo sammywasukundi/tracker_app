@@ -1,9 +1,10 @@
-// ignore_for_file: prefer_const_constructors
+// ignore_for_file: prefer_const_constructors, curly_braces_in_flow_control_structures
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:tracker_app/screens/home/home_page.dart';
 import 'package:tracker_app/screens/home/pages/forms/category.dart';
 
 class FormBudget extends StatefulWidget {
@@ -21,13 +22,80 @@ class _FormBudgetState extends State<FormBudget> {
   final _nomBudget = TextEditingController();
   final _descriptionBudget = TextEditingController();
 
+  List<Map<String, dynamic>> budgets = [];
+  bool _isBudgetListVisible = true; // To toggle budget list visibility
+  
+
+  @override
+  void initState() {
+    super.initState();
+    fetchBudgets();
+  }
+
+  Future<void> fetchBudgets() async {
+    try {
+      // Obtenez l'utilisateur actuellement connecté
+      User? user = FirebaseAuth.instance.currentUser;
+
+      // Vérifiez si l'utilisateur est connecté
+      if (user != null) {
+        String userId = user.uid; // Récupérer l'ID de l'utilisateur
+
+        // Fetch documents from the Firestore collection 'budget' where 'userId' matches the logged-in user
+        QuerySnapshot snapshot = await FirebaseFirestore.instance
+            .collection('budget')
+            .where('userId', isEqualTo: userId) // Filtrer par 'userId'
+            .get();
+
+        // Vérifier si des documents existent dans la collection
+        if (snapshot.docs.isNotEmpty) {
+          // Mettre à jour l'état avec la liste des budgets
+          setState(() {
+            budgets = snapshot.docs.map((doc) {
+              return {
+                'id': doc.id, // Inclure l'ID du document
+                'nomBudget': doc['nomBudget'] ??
+                    'Sans nom', // Gérer les champs manquants
+                'descriptionBudget':
+                    doc['descriptionBudget'] ?? 'Sans description',
+              };
+            }).toList();
+          });
+        } else {
+          // Gérer le cas où aucun document n'est trouvé
+          setState(() {
+            budgets = [];
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text('Aucun budget trouvé pour cet utilisateur.')),
+          );
+        }
+      } else {
+        // L'utilisateur n'est pas connecté
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Utilisateur non connecté.')),
+        );
+      }
+    } catch (e) {
+      // Gérer les erreurs lors du processus de récupération
+      print('Erreur lors de la récupération des budgets : $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur lors de la récupération des budgets.')),
+      );
+    }
+  }
+
   Future<void> addBudgetWithUserReference(
       String userId,
       DateTime dateDebut,
       DateTime dateFin,
       int montant,
       String nomBudget,
-      String descriptionBudget) async {
+      String descriptionBudget,
+      List<String> revenusIds, // Liste d'ID des revenus liés à ce budget
+      List<String> categoriesIds // Liste d'ID des catégories liées à ce budget
+      ) async {
     try {
       // Création de la collection et ajout du document
       await FirebaseFirestore.instance.collection('budget').add({
@@ -37,6 +105,8 @@ class _FormBudgetState extends State<FormBudget> {
         'montant': montant,
         'nomBudget': nomBudget,
         'descriptionBudget': descriptionBudget,
+        'revenus': revenusIds, // Liste d'ID des revenus associés
+        'categories': categoriesIds, // Liste d'ID des catégories associées
         'createdAt': FieldValue.serverTimestamp(),
       });
       print("Budget ajouté avec succès !");
@@ -261,16 +331,25 @@ class _FormBudgetState extends State<FormBudget> {
                             if (user != null) {
                               // Récupérer le userId (uid de l'utilisateur authentifié)
                               String userId = user.uid;
+                              List<String> revenusIds = [
+                                'revenuId1',
+                                'revenuId2'
+                              ];
+                              List<String> categoriesIds = [
+                                'categorieId1',
+                                'categorieId2'
+                              ];
 
                               // Ajouter le budget dans Firestore avec le userId
                               await addBudgetWithUserReference(
-                                userId, // Passer le userId ici
-                                _dateDebut!,
-                                _dateFin!,
-                                int.parse(_montant.text),
-                                _nomBudget.text,
-                                _descriptionBudget.text,
-                              );
+                                  userId, // Passer le userId ici
+                                  _dateDebut!,
+                                  _dateFin!,
+                                  int.parse(_montant.text),
+                                  _nomBudget.text,
+                                  _descriptionBudget.text,
+                                  revenusIds,
+                                  categoriesIds);
 
                               // Afficher un message de validation
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -278,6 +357,12 @@ class _FormBudgetState extends State<FormBudget> {
                                     content: Text(
                                         'Formulaire validé et budget ajouté !')),
                               );
+
+                              //_dateDebut.clear();
+                              //_dateFin.clear();
+                              _montant.clear();
+                              _nomBudget.clear();
+                              _descriptionBudget.clear();
 
                               // Naviguer vers la page des catégories
                               Navigator.push(
@@ -315,6 +400,223 @@ class _FormBudgetState extends State<FormBudget> {
                     ),
                   ],
                 ),
+                SizedBox(height: 20),
+
+                // Ajout de la liste des budgets
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Mes budgets',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        // Bouton pour trier les budgets
+                        PopupMenuButton<String>(
+                          icon: Icon(
+                            Icons.sort,
+                            color: Colors.blueAccent,
+                          ),
+                          onSelected: (String value) {
+                            setState(() {
+                              if (value == 'Nom (A-Z)') {
+                                budgets.sort((a, b) {
+                                  String nomA = a['nomBudget'] ??
+                                      ''; // Valeur par défaut si null
+                                  String nomB = b['nomBudget'] ?? '';
+                                  return nomA.compareTo(nomB);
+                                });
+                              } else if (value == 'Nom (Z-A)') {
+                                budgets.sort((a, b) {
+                                  String nomA = a['nomBudget'] ??
+                                      ''; // Valeur par défaut si null
+                                  String nomB = b['nomBudget'] ?? '';
+                                  return nomB.compareTo(nomA);
+                                });
+                              } else if (value == 'Date croissante') {
+                                budgets.sort((a, b) {
+                                  DateTime? dateA = a['dateDebut'] != null
+                                      ? (a['dateDebut'] as Timestamp).toDate()
+                                      : null;
+                                  DateTime? dateB = b['dateDebut'] != null
+                                      ? (b['dateDebut'] as Timestamp).toDate()
+                                      : null;
+
+                                  if (dateA == null)
+                                    return 1; // Place les budgets sans date en dernier
+                                  if (dateB == null) return -1;
+                                  return dateA.compareTo(dateB);
+                                });
+                              } else if (value == 'Date décroissante') {
+                                budgets.sort((a, b) {
+                                  DateTime? dateA = a['dateDebut'] != null
+                                      ? (a['dateDebut'] as Timestamp).toDate()
+                                      : null;
+                                  DateTime? dateB = b['dateDebut'] != null
+                                      ? (b['dateDebut'] as Timestamp).toDate()
+                                      : null;
+
+                                  if (dateA == null)
+                                    return 1; // Place les budgets sans date en dernier
+                                  if (dateB == null) return -1;
+                                  return dateB.compareTo(dateA);
+                                });
+                              } else if (value == 'Durée') {
+                                budgets.sort((a, b) {
+                                  DateTime? dateDebutA = a['dateDebut'] != null
+                                      ? (a['dateDebut'] as Timestamp).toDate()
+                                      : null;
+                                  DateTime? dateFinA = a['dateFin'] != null
+                                      ? (a['dateFin'] as Timestamp).toDate()
+                                      : null;
+                                  DateTime? dateDebutB = b['dateDebut'] != null
+                                      ? (b['dateDebut'] as Timestamp).toDate()
+                                      : null;
+                                  DateTime? dateFinB = b['dateFin'] != null
+                                      ? (b['dateFin'] as Timestamp).toDate()
+                                      : null;
+
+                                  if (dateDebutA == null || dateFinA == null)
+                                    return 1; // Ignore si pas de dates
+                                  if (dateDebutB == null || dateFinB == null)
+                                    return -1;
+
+                                  int dureeA =
+                                      dateFinA.difference(dateDebutA).inDays;
+                                  int dureeB =
+                                      dateFinB.difference(dateDebutB).inDays;
+                                  return dureeA.compareTo(dureeB);
+                                });
+                              }
+                            });
+                          },
+                          itemBuilder: (BuildContext context) {
+                            return [
+                              PopupMenuItem(
+                                value: 'Nom (A-Z)',
+                                child: Text('Nom (A-Z)'),
+                              ),
+                              PopupMenuItem(
+                                value: 'Nom (Z-A)',
+                                child: Text('Nom (Z-A)'),
+                              ),
+                              PopupMenuItem(
+                                value: 'Date croissante',
+                                child: Text('Date croissante'),
+                              ),
+                              PopupMenuItem(
+                                value: 'Date décroissante',
+                                child: Text('Date décroissante'),
+                              ),
+                              PopupMenuItem(
+                                value: 'Durée',
+                                child: Text('Durée'),
+                              ),
+                            ];
+                          },
+                        ),
+                        // Bouton pour afficher ou cacher la liste des budgets
+                        IconButton(
+                          icon: Icon(
+                            _isBudgetListVisible
+                                ? Icons.keyboard_arrow_up
+                                : Icons.keyboard_arrow_down,
+                            color: Colors.blueAccent,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _isBudgetListVisible = !_isBudgetListVisible;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+
+                SizedBox(height: 10),
+
+                // Budget List
+                _isBudgetListVisible
+                    ? budgets.isNotEmpty
+                        ? Container(
+                            height: 210, // Ajuster la hauteur selon les besoins
+                            child: Padding(
+                              padding: const EdgeInsets.only(bottom: 24.0),
+                              child: ListView.builder(
+                                itemCount: budgets.length,
+                                itemBuilder: (context, index) {
+                                  final budget = budgets[index];
+                                  return Card(
+                                    margin: EdgeInsets.symmetric(
+                                        vertical: 4.0,
+                                        ), // Réduire la marge verticale et ajouter une marge horizontale
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                          4.0), // Bordure arrondie
+                                      side: BorderSide(
+                                          color: Colors.transparent,
+                                          width:
+                                              2.0), // Couleur et largeur de la bordure
+                                    ),
+                                    color: Colors
+                                        .grey[100], // Couleur de fond du card
+                                    child: ListTile(
+                                      contentPadding: EdgeInsets.symmetric(
+                                        horizontal:
+                                            12.0, // Diminuer le padding horizontal
+                                        vertical:
+                                            8.0, // Diminuer le padding vertical
+                                      ),
+                                      title: Text(
+                                        budget['nomBudget'] ??
+                                            'Nom non disponible',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w500,
+                                          fontSize:
+                                              16.0, // Diminuer la taille du texte
+                                          color: Colors
+                                              .black87, // Couleur du texte
+                                        ),
+                                      ),
+                                      subtitle: Text(
+                                        budget['descriptionBudget'] ??
+                                            'Pas de description',
+                                        style: TextStyle(
+                                          fontSize:
+                                              14.0, // Diminuer la taille du sous-titre
+                                          color: Colors.grey[
+                                              700], // Couleur du sous-titre
+                                        ),
+                                      ),
+                                      trailing: IconButton(
+                                        icon: Icon(Icons.arrow_forward,
+                                            color: Colors.blueAccent,
+                                            size: 20.0), // Icone plus petit
+                                        onPressed: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) => HomePage(
+                                                  budgetId: budget['id']),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          )
+                        : Center(
+                            child: Icon(Icons
+                                .hourglass_empty)) // Afficher si la liste est vide
+                    : SizedBox.shrink(),
               ],
             ),
           ),

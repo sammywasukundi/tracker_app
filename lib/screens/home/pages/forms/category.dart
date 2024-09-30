@@ -3,7 +3,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:tracker_app/screens/home/home_page.dart';
 
 class CategoryScreen extends StatefulWidget {
@@ -21,22 +20,47 @@ class _CategoryScreenState extends State<CategoryScreen> {
   List<Map<String, dynamic>> revenusList = [];
   int revenusCount = 0;
 
-  @override
-  void initState() {
-    super.initState();
-    fetchRevenus();
-  }
+ @override
+void initState() {
+  super.initState();
+  // Assurez-vous que vous avez une variable budgetId de type String
+  String budgetId = "budgetId"; // Remplacez par votre logique pour obtenir l'ID du budget
+  
+  // Appelez la méthode fetchRevenus avec l'ID du budget
+  fetchRevenus(budgetId);
+}
 
-  Future<void> fetchRevenus() async {
-    QuerySnapshot snapshot =
-        await FirebaseFirestore.instance.collection('Revenus').get();
+
+  Future<void> fetchRevenus(String budgetId) async {
+  try {
+    // Requête pour obtenir uniquement les revenus liés à ce budget
+    QuerySnapshot snapshot = await FirebaseFirestore.instance
+        .collection('Revenus')
+        .where('budgetId', isEqualTo: budgetId) // Filtrer par l'ID du budget
+        .get();
+
+    // Met à jour l'état avec la liste des revenus récupérés
     setState(() {
       revenusList = snapshot.docs
           .map((doc) => doc.data() as Map<String, dynamic>)
           .toList();
       revenusCount = revenusList.length; // Met à jour le nombre de revenus
     });
+
+    if (revenusList.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Aucun revenu trouvé pour ce budget.')),
+      );
+    }
+  } catch (e) {
+    // Gestion des erreurs
+    print('Erreur lors de la récupération des revenus : $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Erreur lors de la récupération des revenus.')),
+    );
   }
+}
+
 
   Future<void> addRevenu(String source, double montant, String userId) async {
     DocumentReference docRef =
@@ -74,22 +98,47 @@ class _CategoryScreenState extends State<CategoryScreen> {
   //update un revenu
   Future<void> updateRevenu(
       String revenuId, String newSource, double newMontant) async {
-    await FirebaseFirestore.instance
-        .collection('Revenus')
-        .doc(revenuId)
-        .update({
-      'source': newSource,
-      'montant': newMontant,
-    });
+    try {
+      // Récupérer le document
+      DocumentSnapshot docSnapshot = await FirebaseFirestore.instance
+          .collection('Revenus')
+          .doc(revenuId)
+          .get();
 
-    // Mettre à jour localement les données si vous les stockez dans une liste
-    setState(() {
-      int index = revenusList.indexWhere((revenu) => revenu['id'] == revenuId);
-      if (index != -1) {
-        revenusList[index]['source'] = newSource;
-        revenusList[index]['montant'] = newMontant;
+      // Vérifier si le document existe
+      if (docSnapshot.exists) {
+        // Si le document existe, procéder à la mise à jour
+        await FirebaseFirestore.instance
+            .collection('Revenus')
+            .doc(revenuId)
+            .update({
+          'source': newSource,
+          'montant': newMontant,
+        });
+
+        // Mettre à jour localement les données si vous les stockez dans une liste
+        setState(() {
+          int index =
+              revenusList.indexWhere((revenu) => revenu['id'] == revenuId);
+          if (index != -1) {
+            revenusList[index]['source'] = newSource;
+            revenusList[index]['montant'] = newMontant;
+          }
+        });
+      } else {
+        // Si le document n'existe pas, afficher une erreur
+        throw FirebaseException(
+            plugin: 'cloud_firestore',
+            message: 'Le document avec ID $revenuId n\'existe pas.',
+            code: 'not-found');
       }
-    });
+    } catch (e) {
+      // Gérer l'erreur
+      print('Erreur lors de la mise à jour du revenu : $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur : $e')),
+      );
+    }
   }
 
   //formulaire pour update un revenu
@@ -429,7 +478,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    revenu['source'],
+                                    'Source : ${revenu['source']}',
                                     style: TextStyle(
                                       fontSize: 14.0,
                                       color: Theme.of(context)
@@ -460,20 +509,27 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                         color: Colors.redAccent),
                                     onPressed: () async {
                                       try {
-                                        // Récupérer l'ID du revenu à supprimer
-                                        String revenuId = revenu['id'];
+                                        // Vérifier que revenu n'est pas nul
+                                        // Récupérer l'ID du revenu dans la Map
+                                        String revenuId = revenu[
+                                            'id']; // Accéder à l'ID via la clé 'id'
 
-                                        // Appel de la fonction pour supprimer le revenu
-                                        await deleteRevenu(revenuId);
+                                        // Vérifier que l'ID n'est pas vide
+                                        if (revenuId.isNotEmpty) {
+                                          // Appel de la fonction pour supprimer le revenu
+                                          await deleteRevenu(revenuId);
 
-                                        // Afficher un message de succès
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          SnackBar(
-                                              content: Text(
-                                                  'Revenu supprimé avec succès !')),
-                                        );
-                                      } catch (e) {
+                                          // Afficher un message de succès
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                                content: Text(
+                                                    'Revenu supprimé avec succès !')),
+                                          );
+                                        } else {
+                                          throw 'L\'ID du revenu est invalide.';
+                                        }
+                                                                            } catch (e) {
                                         // En cas d'erreur
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(
@@ -688,7 +744,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
               // Naviguer vers le HomeScreen
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => HomePage()),
+                MaterialPageRoute(builder: (context) => HomePage(budgetId: 'id',)),
               );
             },
             label: Text(

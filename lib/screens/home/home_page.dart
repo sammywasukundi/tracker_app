@@ -11,13 +11,16 @@ import 'package:tracker_app/screens/home/pages/graphs/graph.dart';
 //import 'package:tracker_app/screens/home/pages/welcome.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({super.key, required this.budgetId});final String budgetId;
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
+
+  
+
   String? imageUrl;
   int _selectedIndex = 0; // to track the selected tab
   String? firstName;
