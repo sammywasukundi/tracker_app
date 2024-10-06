@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tracker_app/screens/home/home_page.dart';
-import 'package:tracker_app/screens/home/pages/forms/category.dart';
+import 'package:tracker_app/screens/home/pages/forms/revenu.dart';
 
 class FormBudget extends StatefulWidget {
   const FormBudget({super.key});
@@ -24,7 +24,6 @@ class _FormBudgetState extends State<FormBudget> {
 
   List<Map<String, dynamic>> budgets = [];
   bool _isBudgetListVisible = true; // To toggle budget list visibility
-  
 
   @override
   void initState() {
@@ -94,7 +93,8 @@ class _FormBudgetState extends State<FormBudget> {
       String nomBudget,
       String descriptionBudget,
       List<String> revenusIds, // Liste d'ID des revenus liés à ce budget
-      List<String> categoriesIds // Liste d'ID des catégories liées à ce budget
+      List<String> categoriesIds, // Liste d'ID des catégories liées à ce budget
+      List<String> expensesIds // Liste d'ID des dépenses liées à ce budget
       ) async {
     try {
       // Création de la collection et ajout du document
@@ -107,6 +107,7 @@ class _FormBudgetState extends State<FormBudget> {
         'descriptionBudget': descriptionBudget,
         'revenus': revenusIds, // Liste d'ID des revenus associés
         'categories': categoriesIds, // Liste d'ID des catégories associées
+        'depenses': expensesIds,
         'createdAt': FieldValue.serverTimestamp(),
       });
       print("Budget ajouté avec succès !");
@@ -332,12 +333,24 @@ class _FormBudgetState extends State<FormBudget> {
                               // Récupérer le userId (uid de l'utilisateur authentifié)
                               String userId = user.uid;
                               List<String> revenusIds = [
-                                'revenuId1',
-                                'revenuId2'
+                                'Salaire',
+                                'Autres revenus',
+                                'revenuId3',
+                                'revenuId4',
                               ];
                               List<String> categoriesIds = [
-                                'categorieId1',
-                                'categorieId2'
+                                'Maison/habitat',
+                                'Activités ordinaires',
+                                'Transport',
+                                'Divertissement',
+                                'Obligations financieres',
+                                'Personnel',
+                              ];
+                              List<String> expensesIds = [
+                                'depenseId1',
+                                'depenseId2',
+                                'depenseId3',
+                                'depenseId4'
                               ];
 
                               // Ajouter le budget dans Firestore avec le userId
@@ -349,7 +362,8 @@ class _FormBudgetState extends State<FormBudget> {
                                   _nomBudget.text,
                                   _descriptionBudget.text,
                                   revenusIds,
-                                  categoriesIds);
+                                  categoriesIds,
+                                  expensesIds);
 
                               // Afficher un message de validation
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -543,7 +557,7 @@ class _FormBudgetState extends State<FormBudget> {
                 // Budget List
                 _isBudgetListVisible
                     ? budgets.isNotEmpty
-                        ? Container(
+                        ? SizedBox(
                             height: 210, // Ajuster la hauteur selon les besoins
                             child: Padding(
                               padding: const EdgeInsets.only(bottom: 24.0),
@@ -553,8 +567,8 @@ class _FormBudgetState extends State<FormBudget> {
                                   final budget = budgets[index];
                                   return Card(
                                     margin: EdgeInsets.symmetric(
-                                        vertical: 4.0,
-                                        ), // Réduire la marge verticale et ajouter une marge horizontale
+                                      vertical: 4.0,
+                                    ), // Réduire la marge verticale et ajouter une marge horizontale
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(
                                           4.0), // Bordure arrondie

@@ -1,93 +1,135 @@
-// ignore_for_file: prefer_const_constructors
+// ignore_for_file: prefer_const_constructors, prefer_if_null_operators, use_build_context_synchronously
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:tracker_app/screens/home/home_page.dart';
+import 'package:tracker_app/screens/home/pages/forms/category.dart';
 
-class AddCategorie extends StatefulWidget {
-  const AddCategorie({super.key});
+class CategoryScreen extends StatefulWidget {
+  const CategoryScreen({super.key});
 
   @override
-  State<AddCategorie> createState() => _AddCategorieState();
+  _CategoryScreenState createState() => _CategoryScreenState();
 }
 
-class _AddCategorieState extends State<AddCategorie> {
+class _CategoryScreenState extends State<CategoryScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nomCat = TextEditingController();
-  final _descriptionCat = TextEditingController();
+  final _sourceRevenu = TextEditingController();
+  final _montantRevenu = TextEditingController();
 
-  List<Map<String, dynamic>> categoryList = [];
-  int categoryCount = 0;
+  List<Map<String, dynamic>> revenusList = [];
+  int revenusCount = 0;
 
-  Future<void> addCat(String nom, String description, String userId) async {
+ @override
+void initState() {
+  super.initState();
+  // Assurez-vous que vous avez une variable budgetId de type String
+  String budgetId = "budgetId"; // Remplacez par votre logique pour obtenir l'ID du budget
+  
+  // Appelez la méthode fetchRevenus avec l'ID du budget
+  fetchRevenus(budgetId);
+}
+
+
+  Future<void> fetchRevenus(String budgetId) async {
+  try {
+    // Requête pour obtenir uniquement les revenus liés à ce budget
+    QuerySnapshot snapshot = await FirebaseFirestore.instance
+        .collection('Revenus')
+        .where('budgetId', isEqualTo: budgetId) // Filtrer par l'ID du budget
+        .get();
+
+    // Met à jour l'état avec la liste des revenus récupérés
+    setState(() {
+      revenusList = snapshot.docs
+          .map((doc) => doc.data() as Map<String, dynamic>)
+          .toList();
+      revenusCount = revenusList.length; // Met à jour le nombre de revenus
+    });
+
+    if (revenusList.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Aucun revenu trouvé pour ce budget.')),
+      );
+    }
+  } catch (e) {
+    // Gestion des erreurs
+    print('Erreur lors de la récupération des revenus : $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Erreur lors de la récupération des revenus.')),
+    );
+  }
+}
+
+
+  Future<void> addRevenu(String source, double montant, String userId) async {
     DocumentReference docRef =
-        await FirebaseFirestore.instance.collection('categorie').add({
-      'nom': nom,
-      'description': description,
+        await FirebaseFirestore.instance.collection('Revenus').add({
+      'source': source,
+      'montant': montant,
       'userId': userId,
       'createdAt': FieldValue.serverTimestamp(),
     });
 
     // Ajouter à la liste et mettre à jour l'état
     setState(() {
-      categoryList.add({
+      revenusList.add({
         'id': docRef.id,
-        'nom': nom,
-        'description': description,
+        'source': source,
+        'montant': montant,
       });
-      categoryCount = categoryList.length; // Mettre à jour le nombre
+      revenusCount = revenusList.length; // Mettre à jour le nombre
     });
   }
 
-// Supprimer la category de la collection
-  Future<void> deleteCat(String categoryId) async {
+// Supprimer le revenu de la collection
+  Future<void> deleteRevenu(String revenuId) async {
     await FirebaseFirestore.instance
-        .collection('categorie')
-        .doc(categoryId)
+        .collection('Revenus')
+        .doc(revenuId)
         .delete();
 
     setState(() {
-      categoryList.removeWhere((category) => category['id'] == categoryId);
-      categoryCount = categoryList.length; // Mettre à jour le nombre
+      revenusList.removeWhere((revenu) => revenu['id'] == revenuId);
+      revenusCount = revenusList.length; // Mettre à jour le nombre
     });
   }
 
-  //update la category
-  Future<void> updateCat(
-      String categoryId, String newNom, String newDescription) async {
+  //update un revenu
+  Future<void> updateRevenu(
+      String revenuId, String newSource, double newMontant) async {
     try {
       // Récupérer le document
       DocumentSnapshot docSnapshot = await FirebaseFirestore.instance
-          .collection('categorie')
-          .doc(categoryId)
+          .collection('Revenus')
+          .doc(revenuId)
           .get();
 
       // Vérifier si le document existe
       if (docSnapshot.exists) {
         // Si le document existe, procéder à la mise à jour
         await FirebaseFirestore.instance
-            .collection('categorie')
-            .doc(categoryId)
+            .collection('Revenus')
+            .doc(revenuId)
             .update({
-          'nom': newNom,
-          'description': newDescription,
+          'source': newSource,
+          'montant': newMontant,
         });
 
         // Mettre à jour localement les données si vous les stockez dans une liste
         setState(() {
-          int index = categoryList
-              .indexWhere((category) => category['id'] == categoryId);
+          int index =
+              revenusList.indexWhere((revenu) => revenu['id'] == revenuId);
           if (index != -1) {
-            categoryList[index]['nom'] = newNom;
-            categoryList[index]['description'] = newDescription;
+            revenusList[index]['source'] = newSource;
+            revenusList[index]['montant'] = newMontant;
           }
         });
       } else {
         // Si le document n'existe pas, afficher une erreur
         throw FirebaseException(
             plugin: 'cloud_firestore',
-            message: 'Le document avec ID $categoryId n\'existe pas.',
+            message: 'Le document avec ID $revenuId n\'existe pas.',
             code: 'not-found');
       }
     } catch (e) {
@@ -101,16 +143,17 @@ class _AddCategorieState extends State<AddCategorie> {
 
   //formulaire pour update un revenu
   void _showUpdateFormDialog(
-      BuildContext context, String categoryId, String nom, String description) {
-    TextEditingController nomController = TextEditingController(text: nom);
-    TextEditingController descriptionController =
-        TextEditingController(text: description);
+      BuildContext context, String revenuId, String source, double montant) {
+    TextEditingController sourceController =
+        TextEditingController(text: source);
+    TextEditingController montantController =
+        TextEditingController(text: montant.toString());
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Modifier la catégorie'),
+          title: Text('Modifier le revenu'),
           content: Form(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -121,10 +164,10 @@ class _AddCategorieState extends State<AddCategorie> {
                     borderRadius: BorderRadius.circular(1),
                   ),
                   child: TextFormField(
-                    controller: nomController,
+                    controller: sourceController,
                     decoration: InputDecoration(
                       border: InputBorder.none,
-                      hintText: 'Nom',
+                      hintText: 'Description/Soucre',
                       hintStyle: TextStyle(
                         color: Colors.grey,
                         fontWeight: FontWeight.w200,
@@ -145,10 +188,10 @@ class _AddCategorieState extends State<AddCategorie> {
                     borderRadius: BorderRadius.circular(1),
                   ),
                   child: TextFormField(
-                    controller: descriptionController,
+                    controller: montantController,
                     decoration: InputDecoration(
                       border: InputBorder.none,
-                      hintText: 'description de la catégorie',
+                      hintText: 'Montant pour le révenu',
                       hintStyle: TextStyle(
                         color: Colors.grey,
                         fontWeight: FontWeight.w200,
@@ -158,7 +201,7 @@ class _AddCategorieState extends State<AddCategorie> {
                         color: Colors.grey,
                       ),
                     ),
-                    keyboardType: TextInputType.text,
+                    keyboardType: TextInputType.number,
                   ),
                 ),
               ],
@@ -180,16 +223,15 @@ class _AddCategorieState extends State<AddCategorie> {
             TextButton(
               onPressed: () async {
                 // Appel de la fonction pour mettre à jour le revenu
-                await updateCat(categoryId, nomController.text,
-                    descriptionController.text);
+                await updateRevenu(revenuId, sourceController.text,
+                    double.parse(montantController.text));
 
                 // Fermer la boîte de dialogue
                 Navigator.of(context).pop();
 
                 // Afficher un message de succès
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                      content: Text('Catégorie mise à jour avec succès !')),
+                  SnackBar(content: Text('Revenu mis à jour avec succès !')),
                 );
               },
               child: Container(
@@ -210,12 +252,13 @@ class _AddCategorieState extends State<AddCategorie> {
     );
   }
 
-  void _showCatFormDialog(BuildContext context) {
+  // formulaire pour ajouter un revenu
+  void _showCategoryFormDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Ajouter une catégorie'),
+          title: Text('Ajouter un révenu'),
           content: Form(
             key: _formKey,
             child: Column(
@@ -230,11 +273,11 @@ class _AddCategorieState extends State<AddCategorie> {
                   child: Padding(
                     padding: const EdgeInsets.only(left: 8.0),
                     child: TextFormField(
-                      controller: _nomCat,
+                      controller: _sourceRevenu,
                       keyboardType: TextInputType.text,
                       decoration: InputDecoration(
                         border: InputBorder.none,
-                        hintText: 'Nom',
+                        hintText: 'Description/Soucre',
                         hintStyle: TextStyle(
                           color: Colors.grey,
                           fontWeight: FontWeight.w200,
@@ -245,7 +288,7 @@ class _AddCategorieState extends State<AddCategorie> {
                         ),
                       ),
                       validator: (val) => val == null || val.isEmpty
-                          ? 'Nom de la catégorie requis'
+                          ? 'Nom du révenu requis'
                           : null,
                     ),
                   ),
@@ -260,11 +303,11 @@ class _AddCategorieState extends State<AddCategorie> {
                   child: Padding(
                     padding: const EdgeInsets.only(left: 8.0),
                     child: TextFormField(
-                      controller: _descriptionCat,
-                      keyboardType: TextInputType.text,
+                      controller: _montantRevenu,
+                      keyboardType: TextInputType.numberWithOptions(),
                       decoration: InputDecoration(
                         border: InputBorder.none,
-                        hintText: 'description',
+                        hintText: 'Montant pour le révenu',
                         hintStyle: TextStyle(
                           color: Colors.grey,
                           fontWeight: FontWeight.w200,
@@ -274,9 +317,8 @@ class _AddCategorieState extends State<AddCategorie> {
                           color: Colors.grey,
                         ),
                       ),
-                      validator: (val) => val == null || val.isEmpty
-                          ? 'description requise'
-                          : null,
+                      validator: (val) =>
+                          val == null || val.isEmpty ? 'Montant requis' : null,
                     ),
                   ),
                 ),
@@ -304,8 +346,8 @@ class _AddCategorieState extends State<AddCategorie> {
               onTap: () async {
                 if (_formKey.currentState!.validate()) {
                   // Récupération des valeurs du formulaire
-                  String nom = _nomCat.text;
-                  String description = _descriptionCat.text;
+                  String source = _sourceRevenu.text;
+                  double montant = double.parse(_montantRevenu.text);
 
                   // Récupérer l'ID de l'utilisateur actuel
                   User? user = FirebaseAuth.instance.currentUser;
@@ -313,17 +355,16 @@ class _AddCategorieState extends State<AddCategorie> {
 
                   if (userId.isNotEmpty) {
                     // Appel de la fonction pour ajouter le revenu
-                    await addCat(nom, description, userId);
+                    await addRevenu(source, montant, userId);
 
                     // Afficher un message de succès
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content: Text('Catégorie ajoutée avec succès !')),
+                      SnackBar(content: Text('Revenu ajouté avec succès !')),
                     );
 
                     // Réinitialiser les champs du formulaire
-                    _nomCat.clear();
-                    _descriptionCat.clear();
+                    _sourceRevenu.clear();
+                    _montantRevenu.clear();
 
                     // Fermer le formulaire
                     Navigator.of(context).pop();
@@ -331,7 +372,7 @@ class _AddCategorieState extends State<AddCategorie> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                           content: Text(
-                              'Veuillez vous connecter pour ajouter une catégorie.')),
+                              'Veuillez vous connecter pour ajouter un revenu.')),
                     );
                   }
                 }
@@ -359,7 +400,7 @@ class _AddCategorieState extends State<AddCategorie> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Catégories',
+          'Revenus',
           style: TextStyle(color: Colors.white),
         ),
         iconTheme: IconThemeData(color: Colors.white),
@@ -381,9 +422,9 @@ class _AddCategorieState extends State<AddCategorie> {
                       padding: const EdgeInsets.only(left: 8.0),
                       child: Column(children: [
                         Text(
-                          'Catégories de dépenses budgétisées',
+                          'Revenu disponible',
                           style: TextStyle(
-                            fontSize: 16.0,
+                            fontSize: 18.0,
                             fontWeight: FontWeight.w600,
                             color: Theme.of(context).colorScheme.onSurface,
                           ),
@@ -392,7 +433,7 @@ class _AddCategorieState extends State<AddCategorie> {
                           height: 5,
                         ),
                         Text(
-                          '$categoryCount catégories ajoutées',
+                          '$revenusCount revenus ajoutés',
                           style: TextStyle(
                             fontSize: 12.0,
                             fontWeight: FontWeight.w400,
@@ -409,7 +450,7 @@ class _AddCategorieState extends State<AddCategorie> {
                       ),
                       onPressed: () {
                         // Action pour ajouter un revenu ou une catégorie
-                        _showCatFormDialog(context);
+                        _showCategoryFormDialog(context);
                       },
                     ),
                   ],
@@ -418,9 +459,9 @@ class _AddCategorieState extends State<AddCategorie> {
               // Première ListView
               Expanded(
                 child: ListView.builder(
-                  itemCount: categoryList.length,
+                  itemCount: revenusList.length,
                   itemBuilder: (context, int index) {
-                    var category = categoryList[index];
+                    var revenu = revenusList[index];
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8.0),
                       child: Container(
@@ -437,7 +478,7 @@ class _AddCategorieState extends State<AddCategorie> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    '${category['nom']}',
+                                    'Source : ${revenu['source']}',
                                     style: TextStyle(
                                       fontSize: 14.0,
                                       color: Theme.of(context)
@@ -448,7 +489,7 @@ class _AddCategorieState extends State<AddCategorie> {
                                   ),
                                   SizedBox(height: 12),
                                   Text(
-                                    '${category['description']}',
+                                    'Montant : ${revenu['montant']} USD',
                                     style: TextStyle(
                                       fontSize: 14.0,
                                       color: Theme.of(context)
@@ -470,31 +511,31 @@ class _AddCategorieState extends State<AddCategorie> {
                                       try {
                                         // Vérifier que revenu n'est pas nul
                                         // Récupérer l'ID du revenu dans la Map
-                                        String categoryId = category[
+                                        String revenuId = revenu[
                                             'id']; // Accéder à l'ID via la clé 'id'
 
                                         // Vérifier que l'ID n'est pas vide
-                                        if (categoryId.isNotEmpty) {
+                                        if (revenuId.isNotEmpty) {
                                           // Appel de la fonction pour supprimer le revenu
-                                          await deleteCat(categoryId);
+                                          await deleteRevenu(revenuId);
 
                                           // Afficher un message de succès
                                           ScaffoldMessenger.of(context)
                                               .showSnackBar(
                                             SnackBar(
                                                 content: Text(
-                                                    'Catégorie supprimée avec succès !')),
+                                                    'Revenu supprimé avec succès !')),
                                           );
                                         } else {
-                                          throw 'L\'ID de la catégorie est invalide.';
+                                          throw 'L\'ID du revenu est invalide.';
                                         }
-                                      } catch (e) {
+                                                                            } catch (e) {
                                         // En cas d'erreur
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(
                                           SnackBar(
                                               content: Text(
-                                                  'Erreur lors de la suppression de la catégorie : $e')),
+                                                  'Erreur lors de la suppression du revenu : $e')),
                                         );
                                       }
                                     },
@@ -506,19 +547,19 @@ class _AddCategorieState extends State<AddCategorie> {
                                     onPressed: () {
                                       // Vérifiez si les champs existent avant d'appeler la fonction
                                       String id =
-                                          category['id'] ?? 'ID non disponible';
-                                      String nom =
-                                          category['nom'] ?? 'Nom inconnue';
-                                      String description =
-                                          category['description'] ??
-                                              'Description inconue';
+                                          revenu['id'] ?? 'ID non disponible';
+                                      String source =
+                                          revenu['source'] ?? 'Source inconnue';
+                                      double montant = revenu['montant'] != null
+                                          ? revenu['montant']
+                                          : 0.0; // Valeur par défaut pour montant
 
                                       // Appel de la méthode pour afficher le formulaire de mise à jour
                                       _showUpdateFormDialog(
                                         context,
                                         id, // ID du revenu à modifier
-                                        nom, // Source actuelle du revenu
-                                        description, // Montant actuel du revenu
+                                        source, // Source actuelle du revenu
+                                        montant, // Montant actuel du revenu
                                       );
                                     },
                                   ),
@@ -532,6 +573,7 @@ class _AddCategorieState extends State<AddCategorie> {
                   },
                 ),
               ),
+              
             ],
           ),
         ),
@@ -550,11 +592,11 @@ class _AddCategorieState extends State<AddCategorie> {
               // Naviguer vers le HomeScreen
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => HomePage(budgetId: 'id',)),
+                MaterialPageRoute(builder: (context) => AddCategorie()),
               );
             },
             label: Text(
-              'Terminer',
+              'Suivant',
               style: TextStyle(
                   fontWeight: FontWeight.w500,
                   fontSize: 16.5,

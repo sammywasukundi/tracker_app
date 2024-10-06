@@ -15,8 +15,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   String? imageUrl;
   User? user = FirebaseAuth.instance.currentUser;
 
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -116,18 +114,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             style: TextButton.styleFrom(
                               shape:
                                   const StadiumBorder(), // Forme de bouton en stade
-                              side: BorderSide(
-                                // Ajout d'une bordure
-                                color: Colors
-                                    .redAccent, // Couleur de la bordure (verte)
-                                width: 0.5, // Épaisseur de la bordure
-                              ),
                             ),
                             child: Text(
-                              "Non",
+                              "Annuler",
                               style: TextStyle(
                                   fontSize: 16,
-                                  fontWeight: FontWeight.w500,
+                                  fontWeight: FontWeight.w600,
                                   color: Colors.redAccent),
                             ),
                           ),
@@ -141,19 +133,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             style: TextButton.styleFrom(
                               shape:
                                   const StadiumBorder(), // Forme de bouton en stade
-                              side: BorderSide(
-                                // Ajout d'une bordure
-                                color: Colors
-                                    .green, // Couleur de la bordure (verte)
-                                width: 0.5, // Épaisseur de la bordure
-                              ),
                             ),
                             child: Text(
-                              "Oui",
+                              "Déconnexion",
                               style: TextStyle(
                                   fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.greenAccent),
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.blueAccent),
                             ),
                           ),
                         ],
@@ -197,8 +183,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 height: 60,
               ),
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20.0, vertical: 10.0),
                 child: GestureDetector(
                   onTap: () {
                     Navigator.push(
