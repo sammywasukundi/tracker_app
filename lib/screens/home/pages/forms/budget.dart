@@ -92,24 +92,50 @@ class _FormBudgetState extends State<FormBudget> {
       int montant,
       String nomBudget,
       String descriptionBudget,
-      List<String> revenusIds, // Liste d'ID des revenus liés à ce budget
-      List<String> categoriesIds, // Liste d'ID des catégories liées à ce budget
-      List<String> expensesIds // Liste d'ID des dépenses liées à ce budget
-      ) async {
+      List<String> revenusIds,
+      List<String> categoriesIds,
+      List<String> expensesIds) async {
     try {
-      // Création de la collection et ajout du document
+      // Check for overlapping budgets
+      QuerySnapshot existingBudgets = await FirebaseFirestore.instance
+          .collection('budget')
+          .where('userId', isEqualTo: userId)
+          .get();
+
+      bool hasOverlap = false;
+
+      // Check if any existing budget overlaps with the new budget's date range
+      for (var doc in existingBudgets.docs) {
+        DateTime existingStart = (doc['dateDebut'] as Timestamp).toDate();
+        DateTime existingEnd = (doc['dateFin'] as Timestamp).toDate();
+
+        if (!(dateFin.isBefore(existingStart) ||
+            dateDebut.isAfter(existingEnd))) {
+          hasOverlap = true;
+          break;
+        }
+      }
+
+      if (hasOverlap) {
+        print(
+            "Impossible d'ajouter le budget : la période se chevauche avec un autre budget existant.");
+        return;
+      }
+
+      // No overlap, proceed with adding the new budget
       await FirebaseFirestore.instance.collection('budget').add({
-        'userId': userId, // Référence à l'utilisateur
+        'userId': userId,
         'dateDebut': dateDebut,
         'dateFin': dateFin,
         'montant': montant,
         'nomBudget': nomBudget,
         'descriptionBudget': descriptionBudget,
-        'revenus': revenusIds, // Liste d'ID des revenus associés
-        'categories': categoriesIds, // Liste d'ID des catégories associées
+        'revenus': revenusIds,
+        'categories': categoriesIds,
         'depenses': expensesIds,
         'createdAt': FieldValue.serverTimestamp(),
       });
+
       print("Budget ajouté avec succès !");
     } catch (e) {
       print("Erreur lors de l'ajout du budget : $e");

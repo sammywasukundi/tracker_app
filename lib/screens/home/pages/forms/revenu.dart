@@ -20,66 +20,88 @@ class _CategoryScreenState extends State<CategoryScreen> {
   List<Map<String, dynamic>> revenusList = [];
   int revenusCount = 0;
 
- @override
-void initState() {
-  super.initState();
-  // Assurez-vous que vous avez une variable budgetId de type String
-  String budgetId = "budgetId"; // Remplacez par votre logique pour obtenir l'ID du budget
-  
-  // Appelez la méthode fetchRevenus avec l'ID du budget
-  fetchRevenus(budgetId);
-}
+  @override
+  void initState() {
+    super.initState();
+    // Assurez-vous que vous avez une variable budgetId de type String
+    String budgetId =
+        "budgetId"; // Remplacez par votre logique pour obtenir l'ID du budget
 
+    // Appelez la méthode fetchRevenus avec l'ID du budget
+    fetchRevenus(budgetId);
+  }
 
   Future<void> fetchRevenus(String budgetId) async {
-  try {
-    // Requête pour obtenir uniquement les revenus liés à ce budget
-    QuerySnapshot snapshot = await FirebaseFirestore.instance
-        .collection('Revenus')
-        .where('budgetId', isEqualTo: budgetId) // Filtrer par l'ID du budget
-        .get();
+    try {
+      // Requête pour obtenir uniquement les revenus liés à ce budget
+      QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection('Revenus')
+          .where('budgetId', isEqualTo: budgetId) // Filtrer par l'ID du budget
+          .get();
 
-    // Met à jour l'état avec la liste des revenus récupérés
-    setState(() {
-      revenusList = snapshot.docs
-          .map((doc) => doc.data() as Map<String, dynamic>)
-          .toList();
-      revenusCount = revenusList.length; // Met à jour le nombre de revenus
-    });
+      // Met à jour l'état avec la liste des revenus récupérés
+      setState(() {
+        revenusList = snapshot.docs
+            .map((doc) => doc.data() as Map<String, dynamic>)
+            .toList();
+        revenusCount = revenusList.length; // Met à jour le nombre de revenus
+      });
 
-    if (revenusList.isEmpty) {
+      if (revenusList.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Aucun revenu trouvé pour ce budget.')),
+        );
+      }
+    } catch (e) {
+      // Gestion des erreurs
+      print('Erreur lors de la récupération des revenus : $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Aucun revenu trouvé pour ce budget.')),
+        SnackBar(content: Text('Erreur lors de la récupération des revenus.')),
       );
     }
-  } catch (e) {
-    // Gestion des erreurs
-    print('Erreur lors de la récupération des revenus : $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Erreur lors de la récupération des revenus.')),
-    );
   }
-}
-
 
   Future<void> addRevenu(String source, double montant, String userId) async {
-    DocumentReference docRef =
-        await FirebaseFirestore.instance.collection('Revenus').add({
-      'source': source,
-      'montant': montant,
-      'userId': userId,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    try {
+      // Fetch the user's active budget
+      QuerySnapshot<Map<String, dynamic>> budgetSnapshot =
+          await FirebaseFirestore.instance
+              .collection('budget')
+              .where('userId', isEqualTo: userId)
+              .limit(1)
+              .get();
 
-    // Ajouter à la liste et mettre à jour l'état
-    setState(() {
-      revenusList.add({
-        'id': docRef.id,
+      if (budgetSnapshot.docs.isEmpty) {
+        print("Aucun budget trouvé pour l'utilisateur");
+        return; // Stop if no budget is found
+      }
+
+      // Get the budget ID
+      String budgetId = budgetSnapshot.docs.first.id;
+
+      // Add the revenue along with the budgetId
+      DocumentReference docRef =
+          await FirebaseFirestore.instance.collection('Revenus').add({
         'source': source,
         'montant': montant,
+        'userId': userId,
+        'budgetId': budgetId, // Include the budgetId
+        'createdAt': FieldValue.serverTimestamp(),
       });
-      revenusCount = revenusList.length; // Mettre à jour le nombre
-    });
+
+      // Add to the list and update the state
+      setState(() {
+        revenusList.add({
+          'id': docRef.id,
+          'source': source,
+          'montant': montant,
+          'budgetId': budgetId, // Also include the budgetId in the list
+        });
+        revenusCount = revenusList.length; // Update the count
+      });
+    } catch (e) {
+      print("Erreur lors de l'ajout du revenu : $e");
+    }
   }
 
 // Supprimer le revenu de la collection
@@ -529,7 +551,7 @@ void initState() {
                                         } else {
                                           throw 'L\'ID du revenu est invalide.';
                                         }
-                                                                            } catch (e) {
+                                      } catch (e) {
                                         // En cas d'erreur
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(
@@ -573,7 +595,6 @@ void initState() {
                   },
                 ),
               ),
-              
             ],
           ),
         ),

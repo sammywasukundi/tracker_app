@@ -3,6 +3,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:tracker_app/screens/home/pages/forms/expense.dart';
+import 'package:tracker_app/screens/home/pages/welcome.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -52,7 +54,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 SizedBox(height: 10),
                 budgets.isNotEmpty
-                    ? Container(
+                    ? SizedBox(
                         height: 300, // Hauteur de la liste
                         child: ListView.builder(
                           shrinkWrap: true,
@@ -208,12 +210,55 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
 // Fonction pour supprimer un budget
-  void _deleteBudget(String budgetId) async {
-    await FirebaseFirestore.instance
-        .collection('budget')
-        .doc(budgetId)
-        .delete();
-    print("Budget supprimé");
+  Future<void> _deleteBudget(String budgetId) async {
+    try {
+      // Start a batch
+      WriteBatch batch = FirebaseFirestore.instance.batch();
+
+      // Delete the budget document
+      DocumentReference budgetRef =
+          FirebaseFirestore.instance.collection('budget').doc(budgetId);
+      batch.delete(budgetRef);
+
+      // Delete related revenues
+      QuerySnapshot revenuSnapshot = await FirebaseFirestore.instance
+          .collection('Revenus')
+          .where('budgetId', isEqualTo: budgetId)
+          .get();
+
+      for (var doc in revenuSnapshot.docs) {
+        batch.delete(doc.reference); // Delete each revenue linked to the budget
+      }
+
+      // Delete related categories
+      QuerySnapshot categorySnapshot = await FirebaseFirestore.instance
+          .collection('categories')
+          .where('budgetId', isEqualTo: budgetId)
+          .get();
+
+      for (var doc in categorySnapshot.docs) {
+        batch
+            .delete(doc.reference); // Delete each category linked to the budget
+      }
+
+      // Delete related expenses
+      QuerySnapshot expenseSnapshot = await FirebaseFirestore.instance
+          .collection('depense')
+          .where('budgetId', isEqualTo: budgetId)
+          .get();
+
+      for (var doc in expenseSnapshot.docs) {
+        batch.delete(doc.reference); // Delete each expense linked to the budget
+      }
+
+      // Commit the batch
+      await batch.commit();
+
+      print("Budget et ses éléments associés supprimés avec succès !");
+    } catch (e) {
+      print(
+          "Erreur lors de la suppression du budget et des éléments associés : $e");
+    }
   }
 
 // Fonction pour récupérer les budgets de l'utilisateur depuis Firestore
@@ -271,7 +316,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return Dialog(
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(4.0)),
-          child: Container(
+          child: SizedBox(
             width: 400, // Largeur du dialog
             height: 180, // Hauteur du dialog
             child: Column(
@@ -316,14 +361,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         Navigator.of(context).pop();
                       },
                       style: TextButton.styleFrom(
-                        foregroundColor:
-                            Colors.grey, // Couleur du texte du bouton
-                        backgroundColor: Colors
-                            .transparent, // Couleur de fond du bouton (facultatif)
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4)
-                        )
-                      ),
+                          foregroundColor:
+                              Colors.grey, // Couleur du texte du bouton
+                          backgroundColor: Colors
+                              .transparent, // Couleur de fond du bouton (facultatif)
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4))),
                       child: Text('Retour'),
                     ),
                     TextButton(
@@ -332,14 +375,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _confirmDeleteAccount(context);
                       },
                       style: TextButton.styleFrom(
-                        foregroundColor:
-                            Colors.redAccent, // Couleur du texte du bouton
-                        backgroundColor: Colors
-                            .transparent, // Couleur de fond du bouton (facultatif)
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4)
-                        )
-                      ),
+                          foregroundColor:
+                              Colors.redAccent, // Couleur du texte du bouton
+                          backgroundColor: Colors
+                              .transparent, // Couleur de fond du bouton (facultatif)
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4))),
                       child: Text('Supprimer'),
                     ),
                     TextButton(
@@ -348,14 +389,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _showEditUserDialog(context);
                       },
                       style: TextButton.styleFrom(
-                        foregroundColor:
-                            Colors.blueAccent, // Couleur du texte du bouton
-                        backgroundColor: Colors
-                            .transparent, // Couleur de fond du bouton (facultatif)
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4)
-                        )
-                      ),
+                          foregroundColor:
+                              Colors.blueAccent, // Couleur du texte du bouton
+                          backgroundColor: Colors
+                              .transparent, // Couleur de fond du bouton (facultatif)
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4))),
                       child: Text('Modifier'),
                     ),
                   ],
@@ -420,11 +459,93 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onTap: () => _showBudgetsDialog(context)),
             _userAccount(context, Icons.account_circle, 'Mon Compte',
                 onTap: () => _showUserInfoDialog(context)),
-            _buildButton(context, Icons.trending_down, 'Mes dépenses'),
+            buildBackButtonExpense(context, Icons.trending_down, 'Mes dépenses'),
             _buildButton(context, Icons.history, 'Historique'),
             _buildButton(context, Icons.help_outline, 'A propos de nous'),
-            _buildButton(context, Icons.exit_to_app,
-                'Déconnexion'), // Ajout du bouton Déconnexion
+            buildBackButton(context, Icons.arrow_back,
+                'Aller à l\'accuiel'), // Ajout du bouton Déconnexion
+          ],
+        ),
+      ),
+    );
+  }
+
+  // erreur ici
+  void backToWelcomeScreen(BuildContext context) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => WelcomeScreen()),
+    );
+  }
+
+  void backToExpenseScreen(BuildContext context) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => AddExpense()),
+    );
+  }
+
+  Widget buildBackButton(BuildContext context, IconData icon, String label) {
+    return ElevatedButton(
+      onPressed: () => backToWelcomeScreen(context), // Appeler la fonction ici
+      style: ElevatedButton.styleFrom(
+        padding: const EdgeInsets.all(20.0),
+        backgroundColor: Colors.blueAccent[200], // Couleur de fond du bouton
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8), // Bords arrondis
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          Icon(
+            icon,
+            size: 40.0, // Taille de l'icône
+            color: Colors.white, // Couleur de l'icône
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+              fontSize: 16.0,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildBackButtonExpense(BuildContext context, IconData icon, String label) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 20.0),
+      child: ElevatedButton(
+        onPressed: () => backToExpenseScreen(context), // Appeler la fonction ici
+        style: ElevatedButton.styleFrom(
+          padding: const EdgeInsets.all(20.0),
+          backgroundColor: Colors.blueAccent[200], // Couleur de fond du bouton
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8), // Bords arrondis
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Icon(
+              icon,
+              size: 40.0, // Taille de l'icône
+              color: Colors.white, // Couleur de l'icône
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 16.0,
+              ),
+            ),
           ],
         ),
       ),

@@ -20,7 +20,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   bool _isSearching =
       false; // Variable pour afficher ou non la barre de recherche
-  TextEditingController _searchController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
 
   String? imageUrl;
   int _selectedIndex = 0; // to track the selected tab
@@ -31,7 +31,7 @@ class _HomePageState extends State<HomePage> {
 
     if (user != null) {
       try {
-        // Construis le chemin de l'image (supposons que l'image est nommée par l'userId)
+        // Construis le chemin de l'image (par exemple en utilisant l'userId)
         String imagePath = 'image/${user.uid}.png';
 
         // Récupérer la référence à l'image dans Firebase Storage
@@ -112,7 +112,8 @@ class _HomePageState extends State<HomePage> {
                       height: 42,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: const Color.fromARGB(255, 162, 161, 158),
+                        color: const Color.fromARGB(
+                            255, 162, 161, 158), // Couleur de fond par défaut
                       ),
                     ),
                     SizedBox(
@@ -120,14 +121,28 @@ class _HomePageState extends State<HomePage> {
                       child: ClipOval(
                         child: imageUrl != null
                             ? Image.network(
-                                imageUrl!,
+                                imageUrl!, // Utiliser l'URL de l'image récupérée
                                 width: double.infinity,
-                                fit: BoxFit.cover,
+                                height: double
+                                    .infinity, // Remplir l'espace du container
+                                fit: BoxFit
+                                    .cover, // Ajuster l'image au container
+                                errorBuilder: (context, error, stackTrace) {
+                                  // Afficher l'icône si l'image ne peut pas être chargée
+                                  return Icon(
+                                    Icons.person,
+                                    size: 40,
+                                    color: Colors
+                                        .white, // Icône blanche par défaut
+                                  );
+                                },
                               )
                             : Icon(
                                 Icons.person,
                                 size: 40,
-                              ), // Affiche l'icône par défaut si aucune image n'est trouvée
+                                color: Colors
+                                    .white, // Affiche une icône si aucune image n'est trouvée
+                              ),
                       ),
                     ),
                   ],

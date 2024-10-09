@@ -6,7 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_spinkit/flutter_spinkit.dart';
+//import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -21,20 +21,20 @@ class RegisterPage extends StatefulWidget {
 class _RegisterPageState extends State<RegisterPage> {
   //profil controller
   final ImagePicker _imagePicker = ImagePicker();
-  String? imageUrl;
+  String? imageUrl; // URL de l'image après téléchargement
   bool isLoading = false;
 
-  // Form key
+// Clé de formulaire
   final _formKey = GlobalKey<FormState>();
 
-  // text controllers
+// Contrôleurs de texte
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _firstName = TextEditingController();
   final _lastName = TextEditingController();
 
-  // Fonction pour choisir une image depuis la galerie
+// Fonction pour choisir une image depuis la galerie
   Future<void> pickImage() async {
     try {
       XFile? res = await _imagePicker.pickImage(source: ImageSource.gallery);
@@ -42,95 +42,158 @@ class _RegisterPageState extends State<RegisterPage> {
         await uploadImageToFirebase(File(res.path));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        backgroundColor: Colors.red,
-        content: Text('Echec lors du chargement de l\'image: $e'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.red,
+          content: Text('Échec lors du chargement de l\'image: $e'),
+        ),
+      );
     }
   }
 
+// Fonction pour uploader l'image sur Firebase Storage
   Future<void> uploadImageToFirebase(File image) async {
     setState(() {
       isLoading = true;
     });
     try {
+      // Référence à l'emplacement où l'image sera stockée
       Reference reference = FirebaseStorage.instance
           .ref()
           .child("image/${DateTime.now().microsecondsSinceEpoch}.png");
-      await reference.putFile(image).whenComplete(
-        () {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+
+      // Téléchargement du fichier dans Firebase Storage
+      await reference.putFile(image).whenComplete(() {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
             backgroundColor: Colors.green,
             duration: Duration(seconds: 2),
-            content: Text('Chargement de l\'image avec succès'),
-          ));
-        },
-      );
+            content: Text('Image chargée avec succès'),
+          ),
+        );
+      });
+
+      // Récupération de l'URL de l'image
       imageUrl = await reference.getDownloadURL();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        backgroundColor: Colors.red,
-        content: Text('Echec lors du chargement de l\'image: $e'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.red,
+          content: Text('Échec lors du chargement de l\'image: $e'),
+        ),
+      );
     }
     setState(() {
       isLoading = false;
     });
   }
 
-  Future signUp() async {
-    // Valider les champs
+  Future<void> getUserProfileImage() async {
+    // Get the current user's UID
+    String uid = FirebaseAuth.instance.currentUser!.uid;
+
+    try {
+      // Fetch the user's document from Firestore
+      DocumentSnapshot userDoc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+
+      // Retrieve the profile image URL from the document
+      if (userDoc.exists && userDoc.data() != null) {
+        Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+        String? userProfileImageUrl = userData['profile'];
+
+        // Update the state to display the image
+        setState(() {
+          imageUrl = userProfileImageUrl;
+        });
+      }
+    } catch (e) {
+      print('Error fetching user profile image: $e');
+    }
+  }
+
+// Fonction pour inscrire l'utilisateur
+  Future<void> signUp() async {
     if (_formKey.currentState!.validate()) {
       try {
         if (passwordConfirmed()) {
+          // Show loading indicator
           showDialog(
             context: context,
             builder: (context) {
-              return Center(
-                  child: SpinKitWave(
-                color: Colors.blueAccent[100],
-                size: 35,
-              ));
+              return Center(child: CircularProgressIndicator());
             },
           );
 
+          // Create a new Firebase user
           await FirebaseAuth.instance.createUserWithEmailAndPassword(
             email: _emailController.text.trim(),
             password: _passwordController.text.trim(),
           );
+
+          // Close the loading indicator
           Navigator.of(context).pop();
+
+          // Add user details in Firestore
           await addUserDetails(
             _firstName.text.trim(),
             _lastName.text.trim(),
             _emailController.text.trim(),
             _passwordController.text.trim(),
+            imageUrl,
           );
+
+          // Fetch and display the user's profile image
+          await getUserProfileImage();
+
+          // Navigate to login page
           widget.showLoginPage();
         } else {
-          print('Les mots de passe ne correspondent pas');
+          print('Passwords do not match.');
         }
       } catch (e) {
-        print('Erreur lors de l\'inscription: $e');
+        print('Error during sign-up: $e');
       }
     }
   }
 
-  Future addUserDetails(
-      String firstName, String lastName, String email, String password) async {
-    await FirebaseFirestore.instance.collection('users').add({
-      'first name': firstName,
-      'last name': lastName,
-      'email': email,
-      'password': password,
-      'createdAt': FieldValue.serverTimestamp(), // Timestamp du serveur
-    });
+// Fonction pour ajouter les détails de l'utilisateur dans Firestore
+  Future<void> addUserDetails(
+    String firstName,
+    String lastName,
+    String email,
+    String password,
+    String? imageUrl,
+  ) async {
+    // S'assurer que l'URL de l'image est définie
+    if (imageUrl != null) {
+      try {
+        // Ajouter les informations de l'utilisateur à Firestore
+        await FirebaseFirestore.instance.collection('users').add({
+          'first name': firstName,
+          'last name': lastName,
+          'email': email,
+          'password': password,
+          'profile': imageUrl, // URL de l'image de profil
+          'createdAt': FieldValue.serverTimestamp(), // Date d'ajout
+        });
+
+        print('Utilisateur ajouté avec succès avec image de profil.');
+      } catch (e) {
+        print('Erreur lors de l\'ajout de l\'utilisateur: $e');
+      }
+    } else {
+      print('Aucune image de profil téléchargée.');
+    }
   }
 
+// Fonction pour vérifier si les mots de passe correspondent
   bool passwordConfirmed() {
     return _passwordController.text.trim() ==
         _confirmPasswordController.text.trim();
   }
 
+// Libérer les ressources des contrôleurs de texte
   @override
   void dispose() {
     _firstName.dispose();
@@ -175,41 +238,41 @@ class _RegisterPageState extends State<RegisterPage> {
                       children: [
                         Center(
                           child: CircleAvatar(
-                              radius: 65,
-                              child: imageUrl == null
-                                  ? Icon(Icons.person,
-                                      size: 120, color: Colors.grey)
-                                  : SizedBox(
-                                      height: 220,
-                                      child: ClipOval(
-                                        child: Image.network(
-                                          width: double.infinity,
-                                          imageUrl!,
-                                          fit: BoxFit.cover,
-                                        ),
-                                      ),
-                                    )),
+                            radius: 65,
+                            backgroundColor: Colors
+                                .grey[200], // You can add a background color
+                            backgroundImage: imageUrl != null
+                                ? NetworkImage(imageUrl!)
+                                : null, // Display image if URL exists
+                            child: imageUrl == null
+                                ? Icon(Icons.person,
+                                    size: 120, color: Colors.grey)
+                                : null, // Display icon if no image
+                          ),
                         ),
                         if (isLoading)
                           Positioned(
-                              top: 70,
-                              right: 190,
-                              child: Center(
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                ),
-                              )),
+                            top: 70,
+                            right: 190,
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
                         Positioned(
-                            right: 110,
-                            top: 9,
-                            child: GestureDetector(
-                              onTap: pickImage,
-                              child: Icon(Icons.camera_alt,
-                                  color: Colors.grey[500], size: 30),
-                            ))
+                          right: 110,
+                          top: 9,
+                          child: GestureDetector(
+                            onTap: pickImage, // Function to pick the image
+                            child: Icon(Icons.camera_alt,
+                                color: Colors.grey[500], size: 30),
+                          ),
+                        ),
                       ],
                     ),
                   ),
+
                   // Prénom
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 25.0),

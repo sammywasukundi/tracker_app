@@ -20,12 +20,28 @@ class _AddCategorieState extends State<AddCategorie> {
   List<Map<String, dynamic>> categoryList = [];
   int categoryCount = 0;
 
-  Future<void> addCat(String nom, String description, String userId) async {
+  Future<String> getUserBudgetId(String userId) async {
+    // Récupérer le budget de l'utilisateur à partir de Firestore
+    QuerySnapshot snapshot = await FirebaseFirestore.instance
+        .collection('budget')
+        .where('userId', isEqualTo: userId)
+        .get();
+
+    if (snapshot.docs.isNotEmpty) {
+      // Retourner l'ID du premier budget trouvé
+      return snapshot.docs.first.id;
+    }
+    return ''; // Retourner une chaîne vide si aucun budget n'est trouvé
+  }
+
+  Future<void> addCat(
+      String nom, String description, String userId, String budgetId) async {
     DocumentReference docRef =
         await FirebaseFirestore.instance.collection('categorie').add({
       'nom': nom,
       'description': description,
       'userId': userId,
+      'budgetId': budgetId, // Ajoutez l'ID du budget ici
       'createdAt': FieldValue.serverTimestamp(),
     });
 
@@ -35,6 +51,7 @@ class _AddCategorieState extends State<AddCategorie> {
         'id': docRef.id,
         'nom': nom,
         'description': description,
+        'budgetId': budgetId, // Assurez-vous de stocker l'ID du budget ici
       });
       categoryCount = categoryList.length; // Mettre à jour le nombre
     });
@@ -54,8 +71,8 @@ class _AddCategorieState extends State<AddCategorie> {
   }
 
   //update la category
-  Future<void> updateCat(
-      String categoryId, String newNom, String newDescription) async {
+  Future<void> updateCat(String categoryId, String newNom,
+      String newDescription, String? newBudgetId) async {
     try {
       // Récupérer le document
       DocumentSnapshot docSnapshot = await FirebaseFirestore.instance
@@ -72,6 +89,8 @@ class _AddCategorieState extends State<AddCategorie> {
             .update({
           'nom': newNom,
           'description': newDescription,
+          if (newBudgetId != null)
+            'budgetId': newBudgetId, // Mettre à jour l'ID du budget si fourni
         });
 
         // Mettre à jour localement les données si vous les stockez dans une liste
@@ -81,6 +100,10 @@ class _AddCategorieState extends State<AddCategorie> {
           if (index != -1) {
             categoryList[index]['nom'] = newNom;
             categoryList[index]['description'] = newDescription;
+            if (newBudgetId != null) {
+              categoryList[index]['budgetId'] =
+                  newBudgetId; // Mettre à jour l'ID du budget localement
+            }
           }
         });
       } else {
@@ -92,7 +115,7 @@ class _AddCategorieState extends State<AddCategorie> {
       }
     } catch (e) {
       // Gérer l'erreur
-      print('Erreur lors de la mise à jour du revenu : $e');
+      print('Erreur lors de la mise à jour de la catégorie : $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erreur : $e')),
       );
@@ -181,7 +204,7 @@ class _AddCategorieState extends State<AddCategorie> {
               onPressed: () async {
                 // Appel de la fonction pour mettre à jour le revenu
                 await updateCat(categoryId, nomController.text,
-                    descriptionController.text);
+                    descriptionController.text, null);
 
                 // Fermer la boîte de dialogue
                 Navigator.of(context).pop();
@@ -311,9 +334,13 @@ class _AddCategorieState extends State<AddCategorie> {
                   User? user = FirebaseAuth.instance.currentUser;
                   String userId = user!.uid;
 
-                  if (userId.isNotEmpty) {
-                    // Appel de la fonction pour ajouter le revenu
-                    await addCat(nom, description, userId);
+                  // Récupérer l'ID du budget de l'utilisateur (assurez-vous d'avoir une méthode pour cela)
+                  String budgetId = await getUserBudgetId(
+                      userId); // Implémentez cette méthode pour obtenir l'ID du budget
+
+                  if (userId.isNotEmpty && budgetId.isNotEmpty) {
+                    // Appel de la fonction pour ajouter la catégorie
+                    await addCat(nom, description, userId, budgetId);
 
                     // Afficher un message de succès
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -331,7 +358,7 @@ class _AddCategorieState extends State<AddCategorie> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                           content: Text(
-                              'Veuillez vous connecter pour ajouter une catégorie.')),
+                              'Veuillez vous connecter et avoir un budget pour ajouter une catégorie.')),
                     );
                   }
                 }
@@ -550,7 +577,10 @@ class _AddCategorieState extends State<AddCategorie> {
               // Naviguer vers le HomeScreen
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => HomePage(budgetId: 'id',)),
+                MaterialPageRoute(
+                    builder: (context) => HomePage(
+                          budgetId: 'id',
+                        )),
               );
             },
             label: Text(
