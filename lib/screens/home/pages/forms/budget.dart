@@ -360,23 +360,12 @@ class _FormBudgetState extends State<FormBudget> {
                               String userId = user.uid;
                               List<String> revenusIds = [
                                 'Salaire',
-                                'Autres revenus',
-                                'revenuId3',
-                                'revenuId4',
                               ];
                               List<String> categoriesIds = [
                                 'Maison/habitat',
-                                'Activités ordinaires',
-                                'Transport',
-                                'Divertissement',
-                                'Obligations financieres',
-                                'Personnel',
                               ];
                               List<String> expensesIds = [
                                 'depenseId1',
-                                'depenseId2',
-                                'depenseId3',
-                                'depenseId4'
                               ];
 
                               // Ajouter le budget dans Firestore avec le userId
@@ -654,8 +643,9 @@ class _FormBudgetState extends State<FormBudget> {
                             ),
                           )
                         : Center(
-                            child: Icon(Icons
-                                .hourglass_empty)) // Afficher si la liste est vide
+                            child: CircularProgressIndicator(
+                              color: Colors.blueAccent,
+                            )) // Afficher si la liste est vide
                     : SizedBox.shrink(),
               ],
             ),

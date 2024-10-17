@@ -15,6 +15,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   String? imageUrl;
   User? user = FirebaseAuth.instance.currentUser;
 
+  bool _isLoading = false;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -99,6 +101,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     context: context,
                     builder: (BuildContext context) {
                       return AlertDialog(
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(4)),
                         //title: Center(child: Text("Déconnexion")),
                         content: Text(
                           "Voulez-vous vous déconnecter ?",
@@ -124,23 +128,42 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             ),
                           ),
                           TextButton(
-                            onPressed: () {
-                              // Si l'utilisateur confirme la déconnexion
-                              FirebaseAuth.instance
-                                  .signOut(); // Action de déconnexion
-                              Navigator.of(context).pop(); // Fermer le dialogue
+                            onPressed: () async {
+                              setState(() {
+                                _isLoading = true; // Début du chargement
+                              });
+
+                              try {
+                                // Action de déconnexion
+                                await FirebaseAuth.instance.signOut();
+
+                                // Fermer le dialogue après la déconnexion
+                                Navigator.of(context).pop();
+                              } catch (e) {
+                                // Gérer l'erreur si besoin
+                                print('Erreur lors de la déconnexion: $e');
+                              } finally {
+                                setState(() {
+                                  _isLoading = false; // Fin du chargement
+                                });
+                              }
                             },
                             style: TextButton.styleFrom(
-                              shape:
-                                  const StadiumBorder(), // Forme de bouton en stade
+                              shape: const StadiumBorder(),
                             ),
-                            child: Text(
-                              "Déconnexion",
-                              style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.blueAccent),
-                            ),
+                            child: _isLoading
+                                ? const CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.blueAccent),
+                                  )
+                                : Text(
+                                    "Se déconnecter",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.blueAccent,
+                                    ),
+                                  ),
                           ),
                         ],
                       );

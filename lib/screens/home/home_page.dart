@@ -1,17 +1,20 @@
 // ignore_for_file: prefer_const_constructors, prefer_const_literals_to_create_immutables, sort_child_properties_last
 
-import 'package:firebase_storage/firebase_storage.dart';
+//import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:tracker_app/screens/home/main_screen.dart';
 import 'package:tracker_app/screens/home/pages/forms/expense.dart';
 import 'package:tracker_app/screens/home/pages/graphs/graph.dart';
 import 'package:tracker_app/screens/home/pages/settings.dart';
+import 'package:tracker_app/screens/home/pages/transaction.dart';
 //import 'package:tracker_app/screens/home/pages/welcome.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.budgetId});
   final String budgetId;
+
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -26,28 +29,28 @@ class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0; // to track the selected tab
   String? firstName;
 
-  void _getUserProfileImage() async {
-    User? user = FirebaseAuth.instance.currentUser;
+  // void _getUserProfileImage() async {
+  //   User? user = FirebaseAuth.instance.currentUser;
 
-    if (user != null) {
-      try {
-        // Construis le chemin de l'image (par exemple en utilisant l'userId)
-        String imagePath = 'image/${user.uid}.png';
+  //   if (user != null) {
+  //     try {
+  //       // Construis le chemin de l'image (par exemple en utilisant l'userId)
+  //       String imagePath = 'image/${user.uid}.png';
 
-        // Récupérer la référence à l'image dans Firebase Storage
-        Reference ref = FirebaseStorage.instance.ref().child(imagePath);
+  //       // Récupérer la référence à l'image dans Firebase Storage
+  //       Reference ref = FirebaseStorage.instance.ref().child(imagePath);
 
-        // Obtenir l'URL de téléchargement
-        String downloadUrl = await ref.getDownloadURL();
+  //       // Obtenir l'URL de téléchargement
+  //       String downloadUrl = await ref.getDownloadURL();
 
-        setState(() {
-          imageUrl = downloadUrl; // Stocker l'URL pour l'afficher
-        });
-      } catch (e) {
-        print('Erreur lors de la récupération de l\'URL de l\'image : $e');
-      }
-    }
-  }
+  //       setState(() {
+  //         imageUrl = downloadUrl; // Stocker l'URL pour l'afficher
+  //       });
+  //     } catch (e) {
+  //       print('Erreur lors de la récupération de l\'URL de l\'image : $e');
+  //     }
+  //   }
+  // }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -84,8 +87,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     getDocId(); // Fetch document IDs on initialization
-    _getUserProfileImage();
-    //fetchBudgetData(); // Call function to fetch data from Firestore
+    //_getUserProfileImage();
   }
 
   @override
@@ -234,11 +236,9 @@ class _HomePageState extends State<HomePage> {
                     child: IndexedStack(
                       index: _selectedIndex,
                       children: [
-                        Center(
-                          child: Text("Home Page"),
-                        ),
+                        MainScreen(),
                         GraphScreen(),
-                        Center(child: Text("Transactions Page")),
+                        TransactionScreen(),
                         AddExpense(),
                         SettingsScreen(),
                       ],

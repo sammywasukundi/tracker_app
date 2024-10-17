@@ -2,7 +2,6 @@
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:tracker_app/screens/auth/forgot_pwd_page.dart';
 //import 'package:flutter_spinkit/flutter_spinkit.dart';
 
@@ -56,9 +55,8 @@ class _LoginPageState extends State<LoginPage> {
       context: context,
       builder: (context) {
         return Center(
-            child: SpinKitWave(
+            child: CircularProgressIndicator(
           color: Colors.blueAccent[100],
-          size: 35,
         ));
       },
     );

@@ -111,7 +111,17 @@ class _AddExpenseState extends State<AddExpense> {
       }
 
       // Obtenir le document du budget
-      String budgetId = budgetSnapshot.docs.first.id;
+      var budgetDoc = budgetSnapshot.docs.first;
+      String budgetId = budgetDoc.id;
+      DateTime dateDebut = (budgetDoc['dateDebut'] as Timestamp).toDate();
+      DateTime dateFin = (budgetDoc['dateFin'] as Timestamp).toDate();
+
+      // Vérifier que la date de la dépense est incluse dans la période du budget
+      if (dateDepense.isBefore(dateDebut) || dateDepense.isAfter(dateFin)) {
+        print(
+            "La date de la dépense n'est pas incluse dans la période du budget.");
+        return; // Arrêter la fonction si la date de dépense ne correspond pas
+      }
 
       // Référence à la collection des dépenses dans Firestore
       CollectionReference expensesRef =
@@ -134,6 +144,8 @@ class _AddExpenseState extends State<AddExpense> {
     } catch (e) {
       print("Erreur lors de l'ajout de la dépense : $e");
     }
+
+    // Charger les dépenses après ajout (si besoin)
     await _loadExpenses();
   }
 
@@ -160,7 +172,13 @@ class _AddExpenseState extends State<AddExpense> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Mettre à jour la dépense'),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(4.0)),
+          title: Center(
+              child: Text(
+            'Mettre à jour la dépense',
+            style: TextStyle(fontWeight: FontWeight.w400),
+          )),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -178,7 +196,10 @@ class _AddExpenseState extends State<AddExpense> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text('Annuler'),
+              child: Text(
+                'Annuler',
+                style: TextStyle(color: Colors.grey),
+              ),
             ),
             TextButton(
               onPressed: () async {
@@ -189,7 +210,10 @@ class _AddExpenseState extends State<AddExpense> {
                 Navigator.of(context).pop();
                 setState(() {}); // Rafraîchir la liste après mise à jour
               },
-              child: Text('Mettre à jour'),
+              child: Text(
+                'Mettre à jour',
+                style: TextStyle(color: Colors.blueAccent),
+              ),
             ),
           ],
         );
@@ -258,6 +282,8 @@ class _AddExpenseState extends State<AddExpense> {
       builder: (BuildContext context) {
         return SingleChildScrollView(
           child: AlertDialog(
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(4.0)),
             title: Text('Ajouter une dépense'),
             content: Form(
               key: _formKey,
@@ -270,7 +296,9 @@ class _AddExpenseState extends State<AddExpense> {
                         fetchUserBudgetAndCategories(), // Fonction personnalisée pour récupérer le budget et les catégories
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
-                        return CircularProgressIndicator();
+                        return CircularProgressIndicator(
+                          color: Colors.blueAccent[200],
+                        );
                       }
                       if (snapshot.hasError || !snapshot.hasData) {
                         return Text('Erreur de chargement des catégories');
@@ -623,19 +651,19 @@ class _AddExpenseState extends State<AddExpense> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(
-                                icon: Icon(Icons.edit,
-                                    color: Colors.orangeAccent),
-                                onPressed: () {
-                                  _showUpdateDialog(expense);
-                                },
-                              ),
-                              IconButton(
                                 icon:
-                                    Icon(Icons.delete, color: Colors.redAccent),
+                                    Icon(Icons.remove, color: Colors.redAccent),
                                 onPressed: () async {
                                   await _deleteExpense(expense['id']);
                                   setState(
                                       () {}); // Actualiser la liste après suppression
+                                },
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.edit,
+                                    color: Colors.orangeAccent),
+                                onPressed: () {
+                                  _showUpdateDialog(expense);
                                 },
                               ),
                             ],
