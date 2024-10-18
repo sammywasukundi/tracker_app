@@ -1,10 +1,10 @@
 // ignore_for_file: prefer_const_constructors
 
+import 'package:budget_app/screens/home/pages/forms/expense.dart';
+import 'package:budget_app/screens/home/pages/welcome.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:tracker_app/screens/home/pages/forms/expense.dart';
-import 'package:tracker_app/screens/home/pages/welcome.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});

@@ -1,5 +1,5 @@
+import 'package:budget_app/screens/home/pages/graphs/chart.dart';
 import 'package:flutter/material.dart';
-import 'package:tracker_app/screens/home/pages/graphs/chart.dart';
 
 class GraphScreen extends StatefulWidget {
   const GraphScreen({super.key});

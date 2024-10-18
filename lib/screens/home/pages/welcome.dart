@@ -1,8 +1,9 @@
 // ignore_for_file: prefer_const_constructors
 
+import 'package:budget_app/screens/home/pages/forms/budget.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:tracker_app/screens/home/pages/forms/budget.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -16,6 +17,63 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   User? user = FirebaseAuth.instance.currentUser;
 
   bool _isLoading = false;
+
+  Map<String, dynamic>? userDetails; // Détails utilisateur
+
+  Future<void> fetchUserDetails() async {
+    // Récupère les détails utilisateur depuis Firestore
+    final details = await fetchCurrentUserDetails();
+    // Met à jour l'état avec les données utilisateur
+    setState(() {
+      userDetails = details;
+    });
+  }
+
+  Future<Map<String, dynamic>?> fetchCurrentUserDetails() async {
+    try {
+      // Vérifier si l'utilisateur est connecté
+      User? currentUser = FirebaseAuth.instance.currentUser;
+
+      if (currentUser == null) {
+        print('Aucun utilisateur connecté.');
+        return null;
+      }
+
+      // Récupérer l'UID de l'utilisateur connecté
+      String uid = currentUser.uid;
+
+      // Chercher dans Firestore l'utilisateur avec cet UID
+      DocumentSnapshot userDoc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+
+      if (!userDoc.exists) {
+        print('Aucun utilisateur trouvé pour cet UID: $uid.');
+        return null;
+      }
+
+      // Récupérer les détails de l'utilisateur
+      Map<String, dynamic> userData = {
+        'firstName': userDoc['first name'],
+        'lastName': userDoc['last name'],
+        'email': userDoc['email'],
+        'profile': userDoc['profile'],
+        'createdAt': userDoc['createdAt'] != null
+            ? userDoc['createdAt'].toDate().toString()
+            : 'N/A',
+      };
+
+      return userData;
+    } catch (e) {
+      print('Erreur lors de la récupération des détails utilisateur: $e');
+      return null;
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    fetchUserDetails();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,22 +96,28 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       height: 42,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: const Color.fromARGB(255, 162, 161, 158),
+                        color: const Color.fromARGB(
+                            255, 162, 161, 158), // Couleur de fond par défaut
                       ),
                     ),
                     SizedBox(
                       height: 60,
                       child: ClipOval(
-                        child: imageUrl != null
+                        child: (userDetails != null &&
+                                userDetails!['profile'] != null &&
+                                userDetails!['profile'] != '')
                             ? Image.network(
-                                imageUrl!,
-                                width: double.infinity,
-                                fit: BoxFit.cover,
+                                userDetails![
+                                    'profile'], // Vérification si 'profile' n'est pas null
+                                width: 60, // Largeur du cercle
+                                height: 60, // Hauteur du cercle
+                                fit: BoxFit
+                                    .cover, // Ajuste l'image pour remplir le cercle
                               )
                             : Icon(
-                                Icons.person,
-                                size: 40,
-                              ), // Affiche l'icône par défaut si aucune image n'est trouvée
+                                Icons.account_circle,
+                                size: 60, // Taille de l'icône par défaut
+                              ),
                       ),
                     ),
                   ],
@@ -65,15 +129,16 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      //'Bienvenue, $firstName!',
-                      'Bienvenue sur Tracker_app',
+                      'Bienvenue sur Budget_app',
                       style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
                           color: Colors.white60),
                     ),
                     Text(
-                      user?.email ?? 'example@example.com',
+                      userDetails != null
+                          ? '${userDetails!['firstName']} ${userDetails!['lastName']}'
+                          : 'Chargement...', // Affiche le nom de l'utilisateur ou un texte par défaut
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.white60,
@@ -192,7 +257,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 height: 35,
               ),
               Text(
-                'Avec Tracker_app',
+                'Avec Budget_app',
                 style: TextStyle(fontSize: 28, fontWeight: FontWeight.w500),
               ),
               SizedBox(

@@ -125,22 +125,28 @@ class _RegisterPageState extends State<RegisterPage> {
             },
           );
 
-          // Create a new Firebase user
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          // Create a new Firebase user and get the user credentials
+          UserCredential userCredential =
+              await FirebaseAuth.instance.createUserWithEmailAndPassword(
             email: _emailController.text.trim(),
             password: _passwordController.text.trim(),
           );
+
+          // Get the UID of the newly created user
+          String uid = userCredential.user!.uid;
+          print('Utilisateur créé avec succès. UID: $uid');
 
           // Close the loading indicator
           Navigator.of(context).pop();
 
           // Add user details in Firestore
           await addUserDetails(
+            uid, // Pass the UID here
             _firstName.text.trim(),
             _lastName.text.trim(),
             _emailController.text.trim(),
             _passwordController.text.trim(),
-            imageUrl,
+            imageUrl, // Utilisez imageUrl qui a déjà été assigné
           );
 
           // Fetch and display the user's profile image
@@ -149,41 +155,54 @@ class _RegisterPageState extends State<RegisterPage> {
           // Navigate to login page
           widget.showLoginPage();
         } else {
-          print('Passwords do not match.');
+          print('Les mots de passe ne correspondent pas.');
         }
       } catch (e) {
-        print('Error during sign-up: $e');
+        print('Erreur lors de l\'inscription: $e');
       }
+    } else {
+      print('Le formulaire n\'est pas valide.');
     }
   }
 
-// Fonction pour ajouter les détails de l'utilisateur dans Firestore
+  // Fonction d'ajout d'utilisateur avec UID dans Firestore
   Future<void> addUserDetails(
+    String uid, // UID de l'utilisateur
     String firstName,
     String lastName,
     String email,
     String password,
     String? imageUrl,
   ) async {
-    // S'assurer que l'URL de l'image est définie
-    if (imageUrl != null) {
-      try {
-        // Ajouter les informations de l'utilisateur à Firestore
-        await FirebaseFirestore.instance.collection('users').add({
-          'first name': firstName,
-          'last name': lastName,
-          'email': email,
-          'password': password,
-          'profile': imageUrl, // URL de l'image de profil
-          'createdAt': FieldValue.serverTimestamp(), // Date d'ajout
-        });
+    try {
+      // Log pour vérifier les données avant l'ajout
+      print('Données utilisateur à ajouter:');
+      print('UID: $uid');
+      print('First Name: $firstName');
+      print('Last Name: $lastName');
+      print('Email: $email');
+      print('Profile URL: ${imageUrl ?? 'Aucune image'}');
 
-        print('Utilisateur ajouté avec succès avec image de profil.');
-      } catch (e) {
-        print('Erreur lors de l\'ajout de l\'utilisateur: $e');
+      // Vérifier si uid est valide
+      if (uid.isEmpty) {
+        print('UID est vide. Impossible d\'ajouter l\'utilisateur.');
+        return; // Sortir si le UID est vide
       }
-    } else {
-      print('Aucune image de profil téléchargée.');
+
+      // Tenter d'ajouter les détails de l'utilisateur à Firestore
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'userId': uid,
+        'first name': firstName,
+        'last name': lastName,
+        'email': email,
+        'password': password,
+        'profile': imageUrl ?? '',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      print('Utilisateur ajouté avec succès avec UID.');
+    } catch (e) {
+      print('Erreur lors de l\'ajout de l\'utilisateur dans Firestore: $e');
     }
   }
 
@@ -217,7 +236,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
                   Text(
-                    'Bienvenue sur Tracker_app',
+                    'Bienvenue sur Budget_app',
                     style: GoogleFonts.bebasNeue(
                         fontWeight: FontWeight.w400, fontSize: 35),
                   ),
@@ -225,7 +244,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     height: 10,
                   ),
                   Text(
-                    'Créer votre compte sur Tracker_app',
+                    'Créer votre compte sur Budget_app',
                     style: TextStyle(fontSize: 18),
                   ),
                   SizedBox(

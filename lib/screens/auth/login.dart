@@ -1,8 +1,8 @@
 // ignore_for_file: prefer_const_constructors
 
+import 'package:budget_app/screens/auth/forgot_pwd_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:tracker_app/screens/auth/forgot_pwd_page.dart';
 //import 'package:flutter_spinkit/flutter_spinkit.dart';
 
 class LoginPage extends StatefulWidget {
@@ -123,7 +123,7 @@ class _LoginPageState extends State<LoginPage> {
                   height: 35,
                 ),
                 Text(
-                  'Connectez-vous sur Tracker_app',
+                  'Connectez-vous sur Budget_app',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
                 ),
                 SizedBox(

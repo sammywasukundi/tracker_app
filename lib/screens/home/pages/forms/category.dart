@@ -1,9 +1,9 @@
 // ignore_for_file: prefer_const_constructors
 
+import 'package:budget_app/screens/home/home_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:tracker_app/screens/home/home_page.dart';
 
 class AddCategorie extends StatefulWidget {
   const AddCategorie({super.key});
