@@ -34,27 +34,42 @@ class _AddCategorieState extends State<AddCategorie> {
     return ''; // Retourner une chaîne vide si aucun budget n'est trouvé
   }
 
-  Future<void> addCat(
-      String nom, String description, String userId, String budgetId) async {
-    DocumentReference docRef =
-        await FirebaseFirestore.instance.collection('categorie').add({
-      'nom': nom,
-      'description': description,
-      'userId': userId,
-      'budgetId': budgetId, // Ajoutez l'ID du budget ici
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+  Future<void> addCat(String nom, String description, String budgetId) async {
+    try {
+      // Récupérer l'utilisateur actuellement connecté
+      User? currentUser = FirebaseAuth.instance.currentUser;
 
-    // Ajouter à la liste et mettre à jour l'état
-    setState(() {
-      categoryList.add({
-        'id': docRef.id,
+      if (currentUser == null) {
+        print("Aucun utilisateur connecté.");
+        return;
+      }
+
+      // Récupérer l'ID de l'utilisateur connecté
+      String userId = currentUser.uid;
+
+      // Ajouter la catégorie avec l'ID du budget et l'ID de l'utilisateur
+      DocumentReference docRef =
+          await FirebaseFirestore.instance.collection('categorie').add({
         'nom': nom,
         'description': description,
-        'budgetId': budgetId, // Assurez-vous de stocker l'ID du budget ici
+        'userId': userId, // L'ID de l'utilisateur est récupéré ici
+        'budgetId': budgetId, // ID du budget passé en paramètre
+        'createdAt': FieldValue.serverTimestamp(),
       });
-      categoryCount = categoryList.length; // Mettre à jour le nombre
-    });
+
+      // Ajouter à la liste et mettre à jour l'état
+      setState(() {
+        categoryList.add({
+          'id': docRef.id,
+          'nom': nom,
+          'description': description,
+          'budgetId': budgetId, // Stocker l'ID du budget
+        });
+        categoryCount = categoryList.length; // Mettre à jour le nombre
+      });
+    } catch (e) {
+      print("Erreur lors de l'ajout de la catégorie : $e");
+    }
   }
 
 // Supprimer la category de la collection
@@ -340,7 +355,7 @@ class _AddCategorieState extends State<AddCategorie> {
 
                   if (userId.isNotEmpty && budgetId.isNotEmpty) {
                     // Appel de la fonction pour ajouter la catégorie
-                    await addCat(nom, description, userId, budgetId);
+                    await addCat(nom, description, budgetId);
 
                     // Afficher un message de succès
                     ScaffoldMessenger.of(context).showSnackBar(

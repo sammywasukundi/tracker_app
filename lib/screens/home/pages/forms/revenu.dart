@@ -61,13 +61,21 @@ class _CategoryScreenState extends State<CategoryScreen> {
     }
   }
 
-  Future<void> addRevenu(String source, double montant, String userId) async {
+  Future<void> addRevenu(String source, double montant) async {
     try {
+      // Fetch the active budget for the current user (based on the authenticated user)
+      User? currentUser = FirebaseAuth.instance.currentUser;
+
+      if (currentUser == null) {
+        print("Aucun utilisateur connecté.");
+        return;
+      }
+
       // Fetch the user's active budget
       QuerySnapshot<Map<String, dynamic>> budgetSnapshot =
           await FirebaseFirestore.instance
               .collection('budget')
-              .where('userId', isEqualTo: userId)
+              .where('userId', isEqualTo: currentUser.uid)
               .limit(1)
               .get();
 
@@ -84,8 +92,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
           await FirebaseFirestore.instance.collection('Revenus').add({
         'source': source,
         'montant': montant,
-        'userId': userId,
-        'budgetId': budgetId, // Include the budgetId
+        'budgetId': budgetId, // Only include the budgetId
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -377,7 +384,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
                   if (userId.isNotEmpty) {
                     // Appel de la fonction pour ajouter le revenu
-                    await addRevenu(source, montant, userId);
+                    await addRevenu(source, montant);
 
                     // Afficher un message de succès
                     ScaffoldMessenger.of(context).showSnackBar(

@@ -1,5 +1,6 @@
 // ignore_for_file: prefer_const_constructors
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'dart:convert'; // Pour utf8.encode et base64Encode/base64Decode
@@ -126,26 +127,64 @@ class _TransactionScreenState extends State<TransactionScreen> {
   Future<List<Map<String, String>>> fetchTransactions() async {
     List<Map<String, String>> transactions = [];
 
-    final QuerySnapshot snapshot =
-        await FirebaseFirestore.instance.collection('transaction').get();
+    try {
+      // Récupérer l'utilisateur connecté
+      User? currentUser = FirebaseAuth.instance.currentUser;
 
-    for (var doc in snapshot.docs) {
-      String decryptedMontant = decryptData(doc['montant']);
-      String decryptedDescription = decryptData(doc['description']);
-      String revenuId = doc['revenuId'];
+      if (currentUser == null) {
+        print("Aucun utilisateur connecté.");
+        return [];
+      }
 
-      DocumentSnapshot revenuDoc = await FirebaseFirestore.instance
-          .collection('Revenus')
-          .doc(revenuId)
+      String userId = currentUser.uid;
+
+      // Récupérer le budget associé à l'utilisateur connecté
+      QuerySnapshot<Map<String, dynamic>> budgetSnapshot =
+          await FirebaseFirestore.instance
+              .collection('budget')
+              .where('userId', isEqualTo: userId)
+              .limit(1)
+              .get();
+
+      if (budgetSnapshot.docs.isEmpty) {
+        print("Aucun budget trouvé pour l'utilisateur.");
+        return [];
+      }
+
+      // Obtenir le budgetId de l'utilisateur
+      String budgetId = budgetSnapshot.docs.first.id;
+
+      // Récupérer les transactions liées à ce budget via les revenus
+      final QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection('transaction')
+          .where('budgetId', isEqualTo: budgetId) // Filtrer par budgetId
           .get();
-      String revenuName = revenuDoc['source'];
 
-      transactions.add({
-        'montant': decryptedMontant,
-        'description': decryptedDescription,
-        'date': doc['date'].toDate().toString(),
-        'revenu': revenuName,
-      });
+      for (var doc in snapshot.docs) {
+        String decryptedMontant = decryptData(doc['montant']);
+        String decryptedDescription = decryptData(doc['description']);
+        String revenuId = doc['revenuId'];
+
+        // Récupérer les détails du revenu
+        DocumentSnapshot revenuDoc = await FirebaseFirestore.instance
+            .collection('Revenus')
+            .doc(revenuId)
+            .get();
+
+        // Vérifier si le revenu est lié à l'utilisateur connecté
+        if (revenuDoc.exists && revenuDoc['budgetId'] == budgetId) {
+          String revenuName = revenuDoc['source'];
+
+          transactions.add({
+            'montant': decryptedMontant,
+            'description': decryptedDescription,
+            'date': doc['date'].toDate().toString(),
+            'revenu': revenuName,
+          });
+        }
+      }
+    } catch (e) {
+      print("Erreur lors de la récupération des transactions : $e");
     }
 
     return transactions;
@@ -321,12 +360,17 @@ class _TransactionScreenState extends State<TransactionScreen> {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Center(
-                child: CircularProgressIndicator(color: Colors.blueAccent,)); // En attente des données
+              child: CircularProgressIndicator(
+                color: Colors.blueAccent,
+              ),
+            ); // En attente des données
           } else if (snapshot.hasError) {
-            return Center(child: Text('Erreur: ${snapshot.error}'));
+            return Center(
+              child: Text('Erreur: ${snapshot.error}'),
+            );
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return Center(
-              child: const Text(
+              child: Text(
                 'De quelle manière\ncomptez-vous payer ?',
                 style: TextStyle(fontSize: 28, fontWeight: FontWeight.w500),
                 textAlign: TextAlign.center,
@@ -343,8 +387,9 @@ class _TransactionScreenState extends State<TransactionScreen> {
 
                 return Container(
                   margin: EdgeInsets.symmetric(
-                      vertical: 8,
-                      horizontal: 10), // Ajoute de l'espace entre les éléments
+                    vertical: 8,
+                    horizontal: 10,
+                  ), // Ajoute de l'espace entre les éléments
                   decoration: BoxDecoration(
                     color: Colors.grey[50], // Couleur de fond
                     borderRadius: BorderRadius.circular(3.0), // Coins arrondis
@@ -361,8 +406,8 @@ class _TransactionScreenState extends State<TransactionScreen> {
                     title: Text(
                       'Montant: ${transaction['montant']} USD',
                       style: TextStyle(
-                          fontWeight:
-                              FontWeight.bold), // Met le montant en gras
+                        fontWeight: FontWeight.bold,
+                      ), // Met le montant en gras
                     ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -372,11 +417,13 @@ class _TransactionScreenState extends State<TransactionScreen> {
                             height:
                                 4), // Espace entre la description et la source de revenu
                         Text(
-                            'Source de revenu: ${transaction['revenu'] ?? 'Non spécifié'}'), // Source de revenu
+                          'Source de revenu: ${transaction['revenu'] ?? 'Non spécifié'}', // Source de revenu
+                        ),
                       ],
                     ),
                     trailing: Text(
-                        'Date: ${transaction['date']}'), // Formatage de la date
+                      'Date: ${transaction['date']}',
+                    ), // Formatage de la date
                   ),
                 );
               },

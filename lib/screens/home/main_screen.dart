@@ -18,10 +18,56 @@ class _MainScreenState extends State<MainScreen> {
   List<Map<String, dynamic>> revenus = [];
   List<Map<String, dynamic>> depenses = [];
   bool _isIncomeListVisible = true; // To toggle budget list visibility
-  bool _isLoadingIncome = false;
+  bool _isLoadingIncome = true;
   bool _isExpenseListVisible = true;
-  bool _isLoadingExpense = false;
+  bool _isLoadingExpense = true;
   int revenusCount = 0;
+
+  List<Map<String, dynamic>> budgets = [];
+
+  Future<void> fetchBudgets() async {
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+
+      if (user != null) {
+        String userId = user.uid;
+
+        QuerySnapshot snapshot = await FirebaseFirestore.instance
+            .collection('budget')
+            .where('userId', isEqualTo: userId)
+            .get();
+
+        if (snapshot.docs.isNotEmpty) {
+          setState(() {
+            budgets = snapshot.docs.map((doc) {
+              return {
+                'id': doc.id, // ID du document dans Firestore
+                'nomBudget': doc['nomBudget'] ?? 'Sans nom',
+                'montant': doc['montant'] ?? 0.00, // Montant du budget
+              };
+            }).toList();
+          });
+        } else {
+          setState(() {
+            budgets = [];
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text('Aucun budget trouvé pour cet utilisateur.')),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Utilisateur non connecté.')),
+        );
+      }
+    } catch (e) {
+      print('Erreur lors de la récupération des budgets : $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur lors de la récupération des budgets.')),
+      );
+    }
+  }
 
   Future<void> fetchBudgetDetails(String budgetId) async {
     try {
@@ -58,12 +104,10 @@ class _MainScreenState extends State<MainScreen> {
             };
           });
 
-          // Récupérer les revenus liés au budget
+          // Récupérer les revenus liés au budget (pas besoin de vérifier l'utilisateur)
           QuerySnapshot revenusSnapshot = await FirebaseFirestore.instance
               .collection('Revenus')
               .where('budgetId', isEqualTo: budgetId)
-              .where('userId',
-                  isEqualTo: user.uid) // Vérifier l'utilisateur connecté
               .get();
 
           List<Map<String, dynamic>> revenusList =
@@ -73,12 +117,10 @@ class _MainScreenState extends State<MainScreen> {
 
           print('Revenus récupérés : $revenusList');
 
-          // Récupérer les dépenses liées au budget
+          // Récupérer les dépenses liées au budget (pas besoin de vérifier l'utilisateur)
           QuerySnapshot depensesSnapshot = await FirebaseFirestore.instance
               .collection('depense')
               .where('budgetId', isEqualTo: budgetId)
-              .where('userId',
-                  isEqualTo: user.uid) // Vérifier l'utilisateur connecté
               .get();
 
           List<Map<String, dynamic>> depensesList =
@@ -127,11 +169,10 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
-
+    fetchBudgets();
     String budgetId = "budgetId";
 
     fetchBudgetDetails(budgetId); // Passez l'ID du budget
-    //fetchRevenus(budgetId);
 
     Future.delayed(Duration(seconds: 5), () {
       setState(() {
@@ -197,29 +238,40 @@ class _MainScreenState extends State<MainScreen> {
                     Stack(
                       alignment: Alignment.center,
                       children: [
-                        CircularProgressIndicator(
-                          value: (budget['montant'] != null &&
-                                  budget['montant'] > 0)
-                              ? revenusTotal / budget['montant']
-                              : 0.0, // Valeur par défaut si revenusTotal ou montant est nul
-                          strokeWidth: 10,
-                          backgroundColor: Colors.white30,
-                          color: Colors.greenAccent,
-                        ),
-                        Text(
-                          '${(budget['montant'] != null && budget['montant'] > 0) ? ((revenusTotal / budget['montant']) * 100).toStringAsFixed(1) : '0.0'}%',
-                          style: TextStyle(
+                        SizedBox(
+                          height: 120, // Augmenter la taille du cercle
+                          width: 120, // Augmenter la taille du cercle
+                          child: CircularProgressIndicator(
+                            value: (budget['montant'] != null &&
+                                    budget['montant'] > 0)
+                                ? revenusTotal / budget['montant']
+                                : 0.0, // Valeur par défaut si revenusTotal ou montant est nul
+                            strokeWidth:
+                                15, // Augmenter l'épaisseur de l'indicateur
+                            backgroundColor: Colors.white30,
                             color: Colors.greenAccent,
-                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(
+                              20.0), // Ajouter du padding interne pour l'espace
+                          child: Text(
+                            '${(budget['montant'] != null && budget['montant'] > 0) ? ((revenusTotal / budget['montant']) * 100).toStringAsFixed(1) : '0.0'}%',
+                            style: TextStyle(
+                              color: Colors.greenAccent,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18.0, // Augmenter la taille du texte
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(
+                        height: 16), // Augmenter l'espace sous le cercle
                     const Text(
                       'Revenus',
                       style: TextStyle(
-                        fontSize: 14.0,
+                        fontSize: 16.0, // Augmenter la taille du texte
                         fontWeight: FontWeight.w600,
                         color: Colors.black,
                       ),
@@ -233,29 +285,40 @@ class _MainScreenState extends State<MainScreen> {
                     Stack(
                       alignment: Alignment.center,
                       children: [
-                        CircularProgressIndicator(
-                          value: (budget['montant'] != null &&
-                                  budget['montant'] > 0)
-                              ? depensesTotal / budget['montant']
-                              : 0.0, // Valeur par défaut si depensesTotal ou montant est nul
-                          strokeWidth: 10,
-                          backgroundColor: Colors.white30,
-                          color: Colors.redAccent,
-                        ),
-                        Text(
-                          '${(budget['montant'] != null && budget['montant'] > 0) ? ((depensesTotal / budget['montant']) * 100).toStringAsFixed(1) : '0.0'}%',
-                          style: TextStyle(
+                        SizedBox(
+                          height: 120, // Augmenter la taille du cercle
+                          width: 120, // Augmenter la taille du cercle
+                          child: CircularProgressIndicator(
+                            value: (budget['montant'] != null &&
+                                    budget['montant'] > 0)
+                                ? depensesTotal / budget['montant']
+                                : 0.0, // Valeur par défaut si depensesTotal ou montant est nul
+                            strokeWidth:
+                                15, // Augmenter l'épaisseur de l'indicateur
+                            backgroundColor: Colors.white30,
                             color: Colors.redAccent,
-                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(
+                              20.0), // Ajouter du padding interne pour l'espace
+                          child: Text(
+                            '${(budget['montant'] != null && budget['montant'] > 0) ? ((depensesTotal / budget['montant']) * 100).toStringAsFixed(1) : '0.0'}%',
+                            style: TextStyle(
+                              color: Colors.redAccent,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18.0, // Augmenter la taille du texte
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(
+                        height: 16), // Augmenter l'espace sous le cercle
                     const Text(
                       'Dépenses',
                       style: TextStyle(
-                        fontSize: 14.0,
+                        fontSize: 16.0, // Augmenter la taille du texte
                         fontWeight: FontWeight.w600,
                         color: Colors.black,
                       ),
@@ -265,33 +328,50 @@ class _MainScreenState extends State<MainScreen> {
               ],
             ),
 
-            // const SizedBox(height: 20),
+            const SizedBox(height: 20),
 
-            // // Liste des budgets
-            // Expanded(
-            //   child: budget != null && budget.isNotEmpty
-            //       ? ListView.builder(
-            //           itemCount: budget.length,
-            //           itemBuilder: (context, index) {
-            //             var currentBudget = budget[index];
-            //             return ListTile(
-            //               title: Text(
-            //                   'Budget ${currentBudget['budgetId'] ?? 'ID non disponible'}'),
-            //               subtitle: Text(
-            //                 'Montant: \$${(currentBudget['montant'] != null) ? currentBudget['montant'].toStringAsFixed(2) : '0.00'}',
-            //               ),
-            //               onTap: () => onBudgetSelected(currentBudget['id']),
-            //             );
-            //           },
-            //         )
-            //       : Center(
-            //           child: Text(
-            //             'Aucun budget trouvé.',
-            //             style: TextStyle(fontSize: 16.0, color: Colors.grey),
-            //           ),
-            //         ),
-            // ),
+            // Liste des budgets
+            Expanded(
+              child: budgets != null && budgets.isNotEmpty
+                  ? ListView.builder(
+                      itemCount: budgets.length,
+                      itemBuilder: (context, index) {
+                        var currentBudget = budgets[index];
 
+                        // Vérifier si currentBudget n'est pas null
+                        if (currentBudget == null || currentBudget.isEmpty) {
+                          return ListTile(
+                            title: Text('Budget non disponible'),
+                            subtitle: Text('Montant: \$0.00'),
+                          );
+                        }
+
+                        // Utiliser 'id' au lieu de 'budgetId' et vérifier les valeurs
+                        String budgetId =
+                            currentBudget['nomBudget'] ?? 'ID non disponible';
+                        var montant = currentBudget['montant'] != null
+                            ? (currentBudget['montant'] is int
+                                ? (currentBudget['montant'] as int)
+                                    .toDouble() // Convertir int en double
+                                : currentBudget['montant']
+                                    as double) // Si déjà double, pas de conversion nécessaire
+                            : 0.00;
+
+                        return ListTile(
+                          title: Text('Budget $budgetId'),
+                          subtitle:
+                              Text('Montant: \$${montant.toStringAsFixed(2)}'),
+                          onTap: () => onBudgetSelected(currentBudget['id']),
+                        );
+                      },
+                    )
+                  : Center(
+                      child: Text(
+                        'Aucun budget trouvé.',
+                        style: TextStyle(fontSize: 16.0, color: Colors.grey),
+                      ),
+                    ),
+            ),
             SizedBox(
               height: 15,
             ),
@@ -326,11 +406,11 @@ class _MainScreenState extends State<MainScreen> {
               ],
             ),
             SizedBox(height: 10),
-            // Budget List
+            // income List
+            // Revenus section
             _isIncomeListVisible
                 ? revenus.isNotEmpty
-                    ? SizedBox(
-                        height: 210, // Ajuster la hauteur selon les besoins
+                    ? Expanded(
                         child: Padding(
                           padding: const EdgeInsets.only(bottom: 24.0),
                           child: ListView.builder(
@@ -389,20 +469,22 @@ class _MainScreenState extends State<MainScreen> {
                     : _isLoadingIncome
                         ? Center(
                             child: CircularProgressIndicator(
-                            color: Colors.blueAccent,
-                          ))
+                              color: Colors.blueAccent,
+                            ),
+                          )
                         : Center(
                             child: Text(
-                            'Aucun revenu trouvé pour ce budget',
-                            style: TextStyle(
-                              fontSize: 16.0,
-                              color: Colors.grey,
+                              'Aucun revenu trouvé pour ce budget',
+                              style: TextStyle(
+                                fontSize: 16.0,
+                                color: Colors.grey,
+                              ),
                             ),
-                          ))
+                          )
                 : SizedBox.shrink(),
-            SizedBox(
-              height: 15,
-            ),
+            SizedBox(height: 15),
+
+            // Dépenses section
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -415,7 +497,6 @@ class _MainScreenState extends State<MainScreen> {
                 ),
                 Row(
                   children: [
-                    // Bouton pour afficher ou cacher la liste des budgets
                     IconButton(
                       icon: Icon(
                         _isExpenseListVisible
@@ -434,11 +515,11 @@ class _MainScreenState extends State<MainScreen> {
               ],
             ),
             SizedBox(height: 10),
-            // expense List
+
+            // Expense List
             _isExpenseListVisible
                 ? depenses.isNotEmpty
-                    ? SizedBox(
-                        height: 210, // Ajuster la hauteur selon les besoins
+                    ? Expanded(
                         child: Padding(
                           padding: const EdgeInsets.only(bottom: 24.0),
                           child: ListView.builder(
@@ -463,7 +544,7 @@ class _MainScreenState extends State<MainScreen> {
                                               CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              'Source : ${depense['source']}',
+                                              'Catégorie : ${depense['categoryName']}',
                                               style: TextStyle(
                                                 fontSize: 14.0,
                                                 color: Theme.of(context)
@@ -497,16 +578,18 @@ class _MainScreenState extends State<MainScreen> {
                     : _isLoadingExpense
                         ? Center(
                             child: CircularProgressIndicator(
-                            color: Colors.blueAccent,
-                          ))
+                              color: Colors.blueAccent,
+                            ),
+                          )
                         : Center(
                             child: Text(
-                            'Aucune dépense trouvée pour ce budget',
-                            style: TextStyle(
-                              fontSize: 16.0,
-                              color: Colors.grey,
+                              'Aucune dépense trouvée pour ce budget',
+                              style: TextStyle(
+                                fontSize: 16.0,
+                                color: Colors.grey,
+                              ),
                             ),
-                          ))
+                          )
                 : SizedBox.shrink(),
           ],
         ),
