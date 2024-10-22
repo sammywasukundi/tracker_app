@@ -21,7 +21,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  bool _isSearching =
+  final bool _isSearching =
       false; // Variable pour afficher ou non la barre de recherche
   final TextEditingController _searchController = TextEditingController();
 

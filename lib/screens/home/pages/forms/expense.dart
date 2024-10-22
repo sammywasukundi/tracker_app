@@ -29,7 +29,6 @@ class _AddExpenseState extends State<AddExpense> {
 
   String? selectedCategory; // Variable pour stocker la catégorie sélectionnée
 
-// Remplacez par l'ID de votre budget actuel
   late String
       budgetId; // ID du budget actuel auquel les dépenses et catégories sont liées
 
@@ -42,24 +41,6 @@ class _AddExpenseState extends State<AddExpense> {
   void initState() {
     super.initState();
     _loadExpenses();
-  }
-
-  Future<void> _loadExpenses() async {
-    // Assurez-vous que userId est bien défini
-    String? userId = FirebaseAuth.instance.currentUser?.uid;
-
-    if (userId != null) {
-      // Récupérer les dépenses si l'utilisateur est connecté
-      List<Map<String, dynamic>> fetchedExpenses = await fetchExpenses(userId);
-      setState(() {
-        expenseList = fetchedExpenses;
-        expenseCount = expenseList.length;
-      });
-    } else {
-      // Gérer le cas où l'utilisateur n'est pas connecté ou que userId est nul
-      print(
-          "L'utilisateur n'est pas connecté ou l'ID utilisateur est introuvable.");
-    }
   }
 
   Future<List<Map<String, dynamic>>> fetchExpenses(String userId) async {
@@ -78,16 +59,20 @@ class _AddExpenseState extends State<AddExpense> {
     }
 
     return snapshot.docs.map((doc) {
-      print(
-          "Dépense trouvée: ${doc.data()}"); // Ajoutez cette ligne pour déboguer
-      return {
+      final expenseData = {
         'id': doc.id,
         'categoryName': doc['categoryName'] ?? 'Sans nom',
         'montant': doc['montant'] ?? 0,
         'dateDepense': (doc['dateDepense'] as Timestamp).toDate(),
       };
+      print(
+          "Dépense trouvée: $expenseData"); // Ajoutez cette ligne pour déboguer
+      return expenseData;
     }).toList();
   }
+
+  String?
+      selectedBudgetId; // Déclarez cette variable au niveau de l'état de votre widget
 
   Future<void> addExpense(
       String categoryId,
@@ -95,34 +80,10 @@ class _AddExpenseState extends State<AddExpense> {
       String montant,
       String description,
       DateTime dateDepense,
-      String userId) async {
+      String userId,
+      String budgetId) async {
+    // Ajout du paramètre budgetId
     try {
-      // Récupérer l'ID du budget lié à l'utilisateur
-      QuerySnapshot<Map<String, dynamic>> budgetSnapshot =
-          await FirebaseFirestore.instance
-              .collection('budget')
-              .where('userId', isEqualTo: userId)
-              .limit(1)
-              .get();
-
-      if (budgetSnapshot.docs.isEmpty) {
-        print("Aucun budget trouvé pour l'utilisateur");
-        return; // Arrêter la fonction si aucun budget n'est trouvé
-      }
-
-      // Obtenir le document du budget
-      var budgetDoc = budgetSnapshot.docs.first;
-      String budgetId = budgetDoc.id;
-      DateTime dateDebut = (budgetDoc['dateDebut'] as Timestamp).toDate();
-      DateTime dateFin = (budgetDoc['dateFin'] as Timestamp).toDate();
-
-      // Vérifier que la date de la dépense est incluse dans la période du budget
-      if (dateDepense.isBefore(dateDebut) || dateDepense.isAfter(dateFin)) {
-        print(
-            "La date de la dépense n'est pas incluse dans la période du budget.");
-        return; // Arrêter la fonction si la date de dépense ne correspond pas
-      }
-
       // Référence à la collection des dépenses dans Firestore
       CollectionReference expensesRef =
           FirebaseFirestore.instance.collection('depense');
@@ -130,13 +91,13 @@ class _AddExpenseState extends State<AddExpense> {
       // Ajouter une nouvelle dépense dans Firestore
       await expensesRef.add({
         'userId': userId, // ID de l'utilisateur actuel
-        'budgetId': budgetId, // ID du budget lié à la dépense
         'categoryId': categoryId, // ID de la catégorie sélectionnée
         'categoryName':
             categoryName, // Nom de la catégorie pour affichage rapide
         'montant': double.parse(montant), // Montant de la dépense
         'description': description, // Description de la dépense
         'dateDepense': dateDepense, // Date de la dépense
+        'budgetId': budgetId, // Ajout du champ budgetId
         'createdAt': FieldValue.serverTimestamp(), // Timestamp de création
       });
 
@@ -150,70 +111,78 @@ class _AddExpenseState extends State<AddExpense> {
   }
 
   // Fonction pour supprimer la dépense
-  Future<void> _deleteExpense(String expenseId) async {
-    await FirebaseFirestore.instance
-        .collection('depense')
-        .doc(expenseId)
-        .delete();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Dépense supprimée avec succès !')),
-    );
-    await _loadExpenses();
+  Future<void> deleteExpense(String expenseId) async {
+    try {
+      // Référence à la dépense à supprimer
+      DocumentReference expenseRef =
+          FirebaseFirestore.instance.collection('depense').doc(expenseId);
+
+      // Supprimer la dépense
+      await expenseRef.delete();
+
+      print("Dépense supprimée avec succès !");
+    } catch (e) {
+      print("Erreur lors de la suppression de la dépense : $e");
+    }
   }
 
 // Fonction pour afficher un dialogue de mise à jour
-  void _showUpdateDialog(Map<String, dynamic> expense) {
+  void _showUpdateExpenseDialog(
+      BuildContext context,
+      String expenseId,
+      String currentCategoryId,
+      String currentCategoryName,
+      double currentMontant,
+      String currentDescription,
+      DateTime currentDate,
+      String currentBudgetId) {
     TextEditingController montantController =
-        TextEditingController(text: expense['montant'].toString());
+        TextEditingController(text: currentMontant.toString());
     TextEditingController descriptionController =
-        TextEditingController(text: expense['description']);
+        TextEditingController(text: currentDescription);
 
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (BuildContext context) {
         return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(4.0)),
-          title: Center(
-              child: Text(
-            'Mettre à jour la dépense',
-            style: TextStyle(fontWeight: FontWeight.w400),
-          )),
+          title: Text('Mettre à jour la dépense'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextFormField(
+              TextField(
                 controller: montantController,
-                keyboardType: TextInputType.number,
                 decoration: InputDecoration(labelText: 'Montant'),
+                keyboardType: TextInputType.number,
               ),
-              TextFormField(
+              TextField(
                 controller: descriptionController,
                 decoration: InputDecoration(labelText: 'Description'),
               ),
+              // Ajouter un sélecteur pour la catégorie et le budget si nécessaire
             ],
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Annuler',
-                style: TextStyle(color: Colors.grey),
-              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('Annuler'),
             ),
             TextButton(
               onPressed: () async {
-                await _updateExpense(
-                    expense['id'],
-                    double.parse(montantController.text),
-                    descriptionController.text);
-                Navigator.of(context).pop();
-                setState(() {}); // Rafraîchir la liste après mise à jour
+                // Appel de la fonction de mise à jour
+                await updateExpense(
+                  expenseId,
+                  currentCategoryId,
+                  currentCategoryName,
+                  montantController.text,
+                  descriptionController.text,
+                  currentDate, // Ou un nouveau date sélectionnée si nécessaire
+                  currentBudgetId,
+                );
+                Navigator.of(context).pop(); // Fermer la boîte de dialogue
               },
-              child: Text(
-                'Mettre à jour',
-                style: TextStyle(color: Colors.blueAccent),
-              ),
+              child: Text('Mettre à jour'),
             ),
           ],
         );
@@ -221,59 +190,117 @@ class _AddExpenseState extends State<AddExpense> {
     );
   }
 
-  // Fonction pour mettre à jour la dépense
-  Future<void> _updateExpense(
-      String expenseId, double montant, String description) async {
-    await FirebaseFirestore.instance
-        .collection('depense')
-        .doc(expenseId)
-        .update({
-      'montant': montant,
-      'description': description,
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Dépense mise à jour avec succès !')),
-    );
+  Future<void> updateExpense(
+      String expenseId,
+      String categoryId,
+      String categoryName,
+      String montant,
+      String description,
+      DateTime dateDepense,
+      String budgetId) async {
+    try {
+      // Référence à la dépense à mettre à jour
+      DocumentReference expenseRef =
+          FirebaseFirestore.instance.collection('depense').doc(expenseId);
+
+      // Mettre à jour les champs de la dépense
+      await expenseRef.update({
+        'categoryId': categoryId,
+        'categoryName': categoryName,
+        'montant': double.parse(montant),
+        'description': description,
+        'dateDepense': dateDepense,
+        'budgetId': budgetId,
+        'updatedAt': FieldValue
+            .serverTimestamp(), // Optionnel : ajouter un timestamp de mise à jour
+      });
+
+      print("Dépense mise à jour avec succès !");
+    } catch (e) {
+      print("Erreur lors de la mise à jour de la dépense : $e");
+    }
+  }
+
+  Future<void> _loadExpenses() async {
+    try {
+      final QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection('depense')
+          .where('userId', isEqualTo: userId)
+          .get();
+
+      setState(() {
+        expenseList = snapshot.docs
+            .map((doc) => doc.data() as Map<String, dynamic>)
+            .toList();
+      });
+    } catch (e) {
+      print("Erreur lors du chargement des dépenses : $e");
+    }
   }
 
   // Fonction pour récupérer l'ID du budget et les catégories liées
-  Future<List<Map<String, dynamic>>> fetchUserBudgetAndCategories() async {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      return []; // Retourner une liste vide si l'utilisateur n'est pas connecté
-    }
+  Future<List<Map<String, dynamic>>> fetchAllCategories() async {
+    try {
+      // Récupérer l'utilisateur actuellement connecté
+      User? currentUser = FirebaseAuth.instance.currentUser;
 
-    // Récupérer l'ID du budget de l'utilisateur
-    QuerySnapshot<Map<String, dynamic>> budgetSnapshot = await FirebaseFirestore
-        .instance
-        .collection('budget')
-        .where('userId', isEqualTo: user.uid)
-        .limit(1)
-        .get();
+      // Référence à la collection des catégories
+      CollectionReference<Map<String, dynamic>> categoriesRef =
+          FirebaseFirestore.instance.collection('categorie');
 
-    if (budgetSnapshot.docs.isEmpty) {
-      return []; // Retourner une liste vide si aucun budget n'est trouvé
-    }
+      QuerySnapshot<Map<String, dynamic>> categoriesSnapshot;
 
-    // Obtenir le premier document du snapshot
-    QueryDocumentSnapshot<Map<String, dynamic>> budgetDoc =
-        budgetSnapshot.docs.first;
-    String budgetId = budgetDoc.id;
-
-    // Récupérer les catégories associées à ce budget
-    QuerySnapshot<Map<String, dynamic>> categoriesSnapshot =
-        await FirebaseFirestore.instance
-            .collection('categorie')
-            .where('budgetId', isEqualTo: budgetId)
+      if (currentUser != null) {
+        // Si l'utilisateur est connecté, récupérer uniquement les catégories liées à son ID
+        categoriesSnapshot = await categoriesRef
+            .where('userId', isEqualTo: currentUser.uid)
             .get();
+      } else {
+        // Si aucun utilisateur n'est connecté, récupérer toutes les catégories
+        categoriesSnapshot = await categoriesRef.get();
+      }
 
-    // Convertir les catégories en liste de Map
-    return categoriesSnapshot.docs.map((doc) {
-      return {
-        'id': doc.id,
-        'nom': doc['nom'],
-      };
-    }).toList();
+      // Convertir les catégories en liste de Map
+      List<Map<String, dynamic>> categories =
+          categoriesSnapshot.docs.map((doc) {
+        return {
+          'id': doc.id,
+          'nom': doc['nom'] ?? 'Sans nom', // Nom avec valeur par défaut si null
+          'description': doc['description'] ?? '', // Description facultative
+        };
+      }).toList();
+
+      return categories; // Retourner la liste des catégories
+    } catch (e) {
+      print("Erreur lors de la récupération des catégories : $e");
+      throw Exception("Erreur de récupération des catégories");
+    }
+  }
+
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> budgets = [];
+
+  Future<void> fetchBudgets() async {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) {
+      print("Aucun utilisateur connecté.");
+      return;
+    }
+
+    try {
+      QuerySnapshot<Map<String, dynamic>> snapshot = await FirebaseFirestore
+          .instance
+          .collection('budget')
+          .where('userId', isEqualTo: currentUser.uid)
+          .get();
+
+      // Stocker les budgets dans la liste
+      setState(() {
+        budgets = snapshot.docs;
+      });
+    } catch (e) {
+      print('Erreur lors de la récupération des budgets : $e');
+    }
   }
 
   void _showExpenseFormDialog(BuildContext context) {
@@ -292,24 +319,22 @@ class _AddExpenseState extends State<AddExpense> {
                 children: <Widget>[
                   // Sélection de la catégorie
                   FutureBuilder<List<Map<String, dynamic>>>(
-                    future:
-                        fetchUserBudgetAndCategories(), // Fonction personnalisée pour récupérer le budget et les catégories
+                    future: fetchAllCategories(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return CircularProgressIndicator(
                           color: Colors.blueAccent[200],
                         );
                       }
-                      if (snapshot.hasError || !snapshot.hasData) {
+                      if (snapshot.hasError) {
                         return Text('Erreur de chargement des catégories');
+                      }
+                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                        return Text('Aucune catégorie disponible');
                       }
 
                       final List<Map<String, dynamic>> categories =
                           snapshot.data!;
-
-                      if (categories.isEmpty) {
-                        return Text('Aucune catégorie disponible');
-                      }
 
                       return DropdownButtonFormField<String>(
                         decoration: InputDecoration(
@@ -324,15 +349,52 @@ class _AddExpenseState extends State<AddExpense> {
                         }).toList(),
                         onChanged: (value) {
                           setState(() {
-                            categoryId =
-                                value; // Assignation de l'ID de la catégorie sélectionnée
+                            categoryId = value;
                             categoryName = categories
-                                    .firstWhere((cat) => cat['id'] == value)[
-                                'nom']; // Récupération du nom de la catégorie
+                                .firstWhere((cat) => cat['id'] == value)['nom'];
                           });
                         },
                         validator: (val) => val == null
                             ? 'Veuillez sélectionner une catégorie'
+                            : null,
+                      );
+                    },
+                  ),
+
+                  SizedBox(height: 10),
+
+                  // Sélection du budget
+                  FutureBuilder<void>(
+                    future: fetchBudgets(), // Récupérer les budgets
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return CircularProgressIndicator(
+                          color: Colors.blueAccent[200],
+                        );
+                      }
+                      if (budgets.isEmpty) {
+                        return Text('Aucun budget disponible');
+                      }
+
+                      return DropdownButtonFormField<String>(
+                        decoration: InputDecoration(
+                          labelText: 'Budget',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: budgets.map((budgetDoc) {
+                          Map<String, dynamic> budgetData = budgetDoc.data();
+                          return DropdownMenuItem<String>(
+                            value: budgetDoc.id,
+                            child: Text(budgetData['nomBudget']),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            selectedBudgetId = value;
+                          });
+                        },
+                        validator: (val) => val == null
+                            ? 'Veuillez sélectionner un budget'
                             : null,
                       );
                     },
@@ -469,36 +531,36 @@ class _AddExpenseState extends State<AddExpense> {
                     String montant = _montantDepenseController.text;
                     String description = _descriptionDepenseController.text;
                     DateTime date = selectedDate!;
-
-                    // Récupérer l'ID de l'utilisateur actuel
                     User? user = FirebaseAuth.instance.currentUser;
                     String userId = user!.uid;
 
-                    if (userId.isNotEmpty && categoryId != null) {
+                    if (userId.isNotEmpty &&
+                        categoryId != null &&
+                        selectedBudgetId != null) {
                       // Appel de la fonction pour ajouter la dépense
                       await addExpense(
-                          categoryId!, nom, montant, description, date, userId);
+                          categoryId!,
+                          nom,
+                          montant,
+                          description,
+                          date,
+                          userId,
+                          selectedBudgetId!); // Inclure l'ID du budget sélectionné
 
-                      // Assurez-vous que le widget est encore monté avant d'afficher la snackbar
                       if (mounted) {
-                        // Afficher un message de succès
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                               content: Text('Dépense ajoutée avec succès !')),
                         );
-
-                        // Réinitialiser les champs du formulaire
                         _montantDepenseController.clear();
                         _descriptionDepenseController.clear();
-
-                        // Fermer le formulaire
                         Navigator.of(context).pop();
                       }
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                             content: Text(
-                                'Veuillez vous connecter et sélectionner une catégorie pour ajouter une dépense.')),
+                                'Veuillez vous connecter, sélectionner une catégorie et un budget.')),
                       );
                     }
                   }
@@ -627,7 +689,18 @@ class _AddExpenseState extends State<AddExpense> {
                   itemCount: expenseList.length,
                   itemBuilder: (context, int index) {
                     final expense = expenseList[index];
-                    final date = expense['dateDepense'] as DateTime;
+                    String? expenseId = expense['id'];
+                    print(
+                        "Dépense à l'index $index: ${expense}"); // Déboguer la dépense ici
+
+                    // Assurez-vous que l'ID n'est pas null
+                    if (expense['id'] == null) {
+                      print("Erreur: ID de dépense est null à l'index $index");
+                    }
+
+                    final date =
+                        (expense['dateDepense'] as Timestamp?)?.toDate() ??
+                            DateTime.now();
                     final formattedDate =
                         "${date.day}/${date.month}/${date.year}";
 
@@ -640,11 +713,11 @@ class _AddExpenseState extends State<AddExpense> {
                         ),
                         child: ListTile(
                           title: Text(
-                            expense['categoryName'],
+                            expense['categoryName'] ?? 'Sans catégorie',
                             style: TextStyle(fontWeight: FontWeight.w500),
                           ),
                           subtitle: Text(
-                            "Montant: ${expense['montant'].toStringAsFixed(2)} USD",
+                            "Montant: \$ ${expense['montant'].toStringAsFixed(2)}",
                           ),
                           leading: Text(formattedDate),
                           trailing: Row(
@@ -654,16 +727,52 @@ class _AddExpenseState extends State<AddExpense> {
                                 icon:
                                     Icon(Icons.remove, color: Colors.redAccent),
                                 onPressed: () async {
-                                  await _deleteExpense(expense['id']);
-                                  setState(
-                                      () {}); // Actualiser la liste après suppression
+                                  if (expense['id'] != null) {
+                                    await deleteExpense(expense['id']);
+                                    setState(
+                                        () {}); // Actualiser la liste après suppression
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                          content:
+                                              Text('ID de dépense manquant.')),
+                                    );
+                                  }
                                 },
                               ),
                               IconButton(
                                 icon: Icon(Icons.edit,
                                     color: Colors.orangeAccent),
                                 onPressed: () {
-                                  _showUpdateDialog(expense);
+                                  if (expenseId != null) {
+                                    // Vérifiez si expenseId n'est pas null
+                                    String currentCategoryId =
+                                        expense['categoryId'];
+                                    String currentCategoryName =
+                                        expense['categoryName'];
+                                    String currentMontant =
+                                        expense['montant'].toString();
+                                    String currentDescription =
+                                        expense['description'];
+                                    DateTime currentDate =
+                                        expense['dateDepense'];
+                                    String currentBudgetId =
+                                        expense['budgetId'];
+
+                                    // Appeler la fonction de mise à jour
+                                    updateExpense(
+                                      expenseId, // ID de la dépense à mettre à jour
+                                      currentCategoryId,
+                                      currentCategoryName,
+                                      currentMontant,
+                                      currentDescription,
+                                      currentDate,
+                                      currentBudgetId,
+                                    );
+                                  } else {
+                                    print(
+                                        "L'ID de la dépense est nul."); // Afficher un message d'erreur
+                                  }
                                 },
                               ),
                             ],

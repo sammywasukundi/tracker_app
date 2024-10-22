@@ -1,5 +1,6 @@
 // ignore_for_file: prefer_const_constructors
 
+import 'package:budget_app/screens/home/pages/forms/budget.dart';
 import 'package:budget_app/screens/home/pages/forms/expense.dart';
 import 'package:budget_app/screens/home/pages/welcome.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -14,6 +15,60 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  String? imageUrl;
+  User? user = FirebaseAuth.instance.currentUser;
+
+  Map<String, dynamic>? userDetails; // Détails utilisateur
+
+  Future<void> fetchUserDetails() async {
+    // Récupère les détails utilisateur depuis Firestore
+    final details = await fetchCurrentUserDetails();
+    // Met à jour l'état avec les données utilisateur
+    setState(() {
+      userDetails = details;
+    });
+  }
+
+  Future<Map<String, dynamic>?> fetchCurrentUserDetails() async {
+    try {
+      // Vérifier si l'utilisateur est connecté
+      User? currentUser = FirebaseAuth.instance.currentUser;
+
+      if (currentUser == null) {
+        print('Aucun utilisateur connecté.');
+        return null;
+      }
+
+      // Récupérer l'UID de l'utilisateur connecté
+      String uid = currentUser.uid;
+
+      // Chercher dans Firestore l'utilisateur avec cet UID
+      DocumentSnapshot userDoc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+
+      if (!userDoc.exists) {
+        print('Aucun utilisateur trouvé pour cet UID: $uid.');
+        return null;
+      }
+
+      // Récupérer les détails de l'utilisateur
+      Map<String, dynamic> userData = {
+        'firstName': userDoc['first name'],
+        'lastName': userDoc['last name'],
+        'email': userDoc['email'],
+        'profile': userDoc['profile'],
+        'createdAt': userDoc['createdAt'] != null
+            ? userDoc['createdAt'].toDate().toString()
+            : 'N/A',
+      };
+
+      return userData;
+    } catch (e) {
+      print('Erreur lors de la récupération des détails utilisateur: $e');
+      return null;
+    }
+  }
+
   // Fonction pour afficher la boîte de dialogue avec la liste des budgets
   void _showBudgetsDialog(BuildContext context) async {
     // Récupérer l'utilisateur connecté
@@ -36,108 +91,126 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return Dialog(
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(4.0)),
-          // Pas de borderRadius
           backgroundColor: Colors.grey[100],
           child: Container(
             width: 400,
             height: 550,
             padding: EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Mes Budgets',
-                  style: TextStyle(
-                    fontSize: 20.0,
-                    fontWeight: FontWeight.w600,
+            child: SingleChildScrollView(
+              // Ajout de SingleChildScrollView
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Mes Budgets',
+                        style: TextStyle(
+                          fontSize: 20.0,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.add, color: Colors.blueAccent),
+                        onPressed: () {
+                          // Naviguer vers la page d'ajout de budget
+                          Navigator.of(context).pop(); // Ferme le dialogue
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => FormBudget()),
+                          );
+                        },
+                      ),
+                    ],
                   ),
-                ),
-                SizedBox(height: 10),
-                budgets.isNotEmpty
-                    ? SizedBox(
-                        height: 300, // Hauteur de la liste
-                        child: ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: budgets.length,
-                          itemBuilder: (context, index) {
-                            var budget =
-                                budgets[index].data() as Map<String, dynamic>;
-                            return Card(
-                              margin: EdgeInsets.symmetric(vertical: 8.0),
-                              elevation: 4,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(
-                                    4.0), // Bordure arrondie
-                                side: BorderSide(
+                  SizedBox(height: 10),
+                  budgets.isNotEmpty
+                      ? SizedBox(
+                          height: 300, // Hauteur de la liste
+                          child: ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: budgets.length,
+                            itemBuilder: (context, index) {
+                              var budget =
+                                  budgets[index].data() as Map<String, dynamic>;
+                              return Card(
+                                margin: EdgeInsets.symmetric(vertical: 8.0),
+                                elevation: 4,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(4.0),
+                                  side: BorderSide(
                                     color: Colors.transparent,
-                                    width:
-                                        2.0), // Couleur et largeur de la bordure
-                              ),
-                              color: Colors.grey[100],
-                              child: ListTile(
-                                contentPadding: const EdgeInsets.all(
-                                    16.0), // Padding autour du contenu
-                                leading: CircleAvatar(
-                                  backgroundColor: Colors.transparent,
-                                  child: Text(
-                                    '${index + 1}',
-                                    style: TextStyle(
-                                      color: Colors.blueAccent,
-                                      fontWeight: FontWeight.w600,
+                                    width: 2.0,
+                                  ),
+                                ),
+                                color: Colors.grey[100],
+                                child: ListTile(
+                                  contentPadding: const EdgeInsets.all(16.0),
+                                  leading: CircleAvatar(
+                                    backgroundColor: Colors.transparent,
+                                    child: Text(
+                                      '${index + 1}',
+                                      style: TextStyle(
+                                        color: Colors.blueAccent,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                title: Text(
-                                  budget['nomBudget'] ?? 'Budget sans nom',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 16.0,
+                                  title: Text(
+                                    budget['nomBudget'] ?? 'Budget sans nom',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 16.0,
+                                    ),
                                   ),
-                                ),
-                                subtitle: Text(
-                                  'Montant: ${budget['montant'] ?? '0'}',
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 14.0,
+                                  subtitle: Text(
+                                    'Montant: \$ ${budget['montant'] ?? '0'}',
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 14.0,
+                                    ),
                                   ),
-                                ),
-                                trailing: IconButton(
-                                  icon: Icon(Icons.delete,
-                                      color: Colors.redAccent),
-                                  onPressed: () {
-                                    _confirmDeleteBudget(
+                                  trailing: IconButton(
+                                    icon: Icon(Icons.delete,
+                                        color: Colors.redAccent),
+                                    onPressed: () {
+                                      _confirmDeleteBudget(
                                         context,
-                                        budgets[index]
-                                            .id); // Appel à la fonction de confirmation
-                                  },
+                                        budgets[index].id,
+                                      );
+                                    },
+                                  ),
                                 ),
-                              ),
-                            );
-                          },
+                              );
+                            },
+                          ),
+                        )
+                      : Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 20.0),
+                          child:
+                              Text('Aucun budget trouvé pour cet utilisateur.'),
                         ),
-                      )
-                    : Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 20.0),
-                        child:
-                            Text('Aucun budget trouvé pour cet utilisateur.'),
-                      ),
-                SizedBox(height: 10),
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 130.0),
-                    child: Text(
-                      'Fermer',
-                      style: TextStyle(
-                        color: Colors.blueAccent,
-                        fontWeight: FontWeight.w600,
+                  SizedBox(height: 10),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.only(
+                          top: 10.0), // Réduire le padding
+                      child: Text(
+                        'Fermer',
+                        style: TextStyle(
+                          color: Colors.blueAccent,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
@@ -183,6 +256,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(4.0)),
           title: Text('Confirmer la suppression'),
           content: Text('Êtes-vous sûr de vouloir supprimer ce budget ?'),
           actions: [
@@ -190,7 +265,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onPressed: () {
                 Navigator.of(context).pop(); // Fermer le dialog sans rien faire
               },
-              child: Text('Annuler'),
+              child: Text('Annuler', style: TextStyle(color: Colors.grey)),
             ),
             TextButton(
               onPressed: () async {
@@ -304,135 +379,198 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // Fonction pour afficher les informations de l'utilisateur
   void _showUserInfoDialog(BuildContext context) {
-    // Récupération des informations de l'utilisateur (remplacez par votre logique)
-    User? user = FirebaseAuth.instance.currentUser; // Par exemple
-    String userName = user?.displayName ?? 'Nom non disponible';
-    String userEmail = user?.email ?? 'Email non disponible';
-    String userPhotoUrl = user?.photoURL ?? ''; // URL de la photo
-
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return Dialog(
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(4.0)),
-          child: SizedBox(
-            width: 400, // Largeur du dialog
-            height: 180, // Hauteur du dialog
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        backgroundImage: userPhotoUrl.isNotEmpty
-                            ? NetworkImage(userPhotoUrl)
-                            : AssetImage(
-                                'assets/default_user.png'), // Image par défaut
-                        radius: 40,
-                      ),
-                      SizedBox(width: 16),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+          child: FutureBuilder<Map<String, dynamic>?>(
+            future:
+                fetchCurrentUserDetails(), // Fetch user details from Firestore
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return SizedBox(
+                  height: 180,
+                  child: Center(
+                    child: CircularProgressIndicator(color: Colors.blueAccent,),
+                  ),
+                );
+              }
+
+              if (snapshot.hasError ||
+                  !snapshot.hasData ||
+                  snapshot.data == null) {
+                return SizedBox(
+                  height: 180,
+                  child: Center(
+                    child: Text('Erreur lors du chargement des informations.'),
+                  ),
+                );
+              }
+
+              final userDetails = snapshot.data!;
+              String userName =
+                  '${userDetails['firstName']} ${userDetails['lastName']}';
+              String userEmail = userDetails['email'] ?? 'Email non disponible';
+              String userPhotoUrl = userDetails['profile'] ??
+                  ''; // Assuming 'profile' contains the photo URL
+
+              return SizedBox(
+                width: 400, // Dialog width
+                height: 250, // Dialog height
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
                         children: [
-                          Text(
-                            userName,
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w600),
+                          Padding(
+                            padding: const EdgeInsets.only(right: 115.0),
+                            child: CircleAvatar(
+                              backgroundImage: userPhotoUrl.isNotEmpty
+                                  ? NetworkImage(userPhotoUrl)
+                                  : AssetImage('assets/default_user.png')
+                                      as ImageProvider,
+                              radius: 40,
+                            ),
                           ),
-                          Text(
-                            userEmail,
-                            style: TextStyle(fontSize: 12),
+                          SizedBox(height: 10),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                userName,
+                                style: TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.w600),
+                              ),
+                              SizedBox(height: 10.0,),
+                              Text(
+                                userEmail,
+                                style: TextStyle(fontSize: 12),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    TextButton(
-                      onPressed: () {
-                        // Logique pour déconnexion
-                        //FirebaseAuth.instance.signOut();
-                        Navigator.of(context).pop();
-                      },
-                      style: TextButton.styleFrom(
-                          foregroundColor:
-                              Colors.grey, // Couleur du texte du bouton
-                          backgroundColor: Colors
-                              .transparent, // Couleur de fond du bouton (facultatif)
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(4))),
-                      child: Text('Retour'),
                     ),
-                    TextButton(
-                      onPressed: () {
-                        // Logique pour suppression du compte
-                        _confirmDeleteAccount(context);
-                      },
-                      style: TextButton.styleFrom(
-                          foregroundColor:
-                              Colors.redAccent, // Couleur du texte du bouton
-                          backgroundColor: Colors
-                              .transparent, // Couleur de fond du bouton (facultatif)
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(4))),
-                      child: Text('Supprimer'),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        // Logique pour modification des informations
-                        _showEditUserDialog(context);
-                      },
-                      style: TextButton.styleFrom(
-                          foregroundColor:
-                              Colors.blueAccent, // Couleur du texte du bouton
-                          backgroundColor: Colors
-                              .transparent, // Couleur de fond du bouton (facultatif)
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(4))),
-                      child: Text('Modifier'),
+                    SizedBox(height: 20.0,),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.grey,
+                            backgroundColor: Colors.transparent,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(4)),
+                          ),
+                          child: Text('Retour'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            _confirmDeleteAccount(context);
+                          },
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.redAccent,
+                            backgroundColor: Colors.transparent,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(4)),
+                          ),
+                          child: Text('Supprimer'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            _showEditUserDialog(context);
+                          },
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.blueAccent,
+                            backgroundColor: Colors.transparent,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(4)),
+                          ),
+                          child: Text('Modifier'),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
+              );
+            },
           ),
         );
       },
     );
   }
 
-// Fonction pour confirmer la suppression du compte
+  Future<void> _deleteUser(BuildContext context) async {
+    try {
+      // Current user from FirebaseAuth
+      User? currentUser = FirebaseAuth.instance.currentUser;
+
+      if (currentUser == null) {
+        print('Aucun utilisateur connecté');
+        return;
+      }
+
+      // Delete the user document from Firestore
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .delete();
+
+      // Delete the user from FirebaseAuth
+      await currentUser.delete();
+
+      // Optionally, sign out after deletion
+      await FirebaseAuth.instance.signOut();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Utilisateur supprimé avec succès.')),
+      );
+
+      // Redirect or close dialog after deletion
+      Navigator.of(context).pop();
+    } catch (e) {
+      print('Erreur lors de la suppression de l\'utilisateur: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Erreur lors de la suppression de l\'utilisateur.')),
+      );
+    }
+  }
+
+  // Fonction pour confirmer la suppression du compte
   void _confirmDeleteAccount(BuildContext context) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Confirmation de Suppression'),
-          content: Text('Êtes-vous sûr de vouloir supprimer votre compte ?'),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(4),
+          ),
+          title: Text('Confirmation de suppression'),
+          content: Text('Voulez-vous vraiment supprimer votre compte ?'),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Ferme le dialog
+                Navigator.of(context).pop(); // Close the dialog
               },
               child: Text('Annuler'),
             ),
             TextButton(
               onPressed: () async {
-                // Logique pour supprimer le compte
-                User? user = FirebaseAuth.instance.currentUser;
-                if (user != null) {
-                  // Supprimez l'utilisateur
-                  await user.delete();
-                  Navigator.of(context).pop(); // Ferme le dialog
-                }
+                Navigator.of(context).pop(); // Close the dialog before deleting
+                await _deleteUser(context); // Call the delete user function
               },
-              child: Text('Confirmer'),
+              child: Text(
+                'Supprimer',
+                style: TextStyle(color: Colors.red),
+              ),
             ),
           ],
         );
@@ -440,9 +578,117 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-// Fonction pour afficher le dialog d'édition des informations
+// Fonction pour update le dialog d'édition des informations
+  Future<void> _updateUserInfo(
+      String firstName, String lastName, String email) async {
+    try {
+      // Current user from FirebaseAuth
+      User? currentUser = FirebaseAuth.instance.currentUser;
+
+      if (currentUser == null) {
+        print('Aucun utilisateur connecté');
+        return;
+      }
+
+      // Update the user's Firestore document
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .update({
+        'first name': firstName,
+        'last name': lastName,
+        'email': email,
+      });
+
+      // Optionally update the user's email in FirebaseAuth
+      if (currentUser.email != email) {
+        // ignore: deprecated_member_use
+        await currentUser.updateEmail(email);
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content:
+                Text('Informations utilisateur mises à jour avec succès.')),
+      );
+    } catch (e) {
+      print('Erreur lors de la mise à jour des informations utilisateur: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(
+                'Erreur lors de la mise à jour des informations utilisateur.')),
+      );
+    }
+  }
+
   void _showEditUserDialog(BuildContext context) {
-    // Implémentez ici votre logique pour l'édition des informations
+    TextEditingController firstNameController =
+        TextEditingController(text: userDetails?['firstName'] ?? '');
+    TextEditingController lastNameController =
+        TextEditingController(text: userDetails?['lastName'] ?? '');
+    TextEditingController emailController =
+        TextEditingController(text: userDetails?['email'] ?? '');
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(4.0),
+          ),
+          title: Text('Modifier les informations de l\'utilisateur'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: firstNameController,
+                  decoration: InputDecoration(labelText: 'Prénom',border: OutlineInputBorder(),),
+                ),
+                SizedBox(height: 10.0,),
+                TextFormField(
+                  controller: lastNameController,
+                  decoration: InputDecoration(labelText: 'Nom de famille',border: OutlineInputBorder(),),
+                ),
+                SizedBox(height: 10.0,),
+                TextFormField(
+                  controller: emailController,
+                  decoration: InputDecoration(labelText: 'Email',border: OutlineInputBorder(),),
+                  keyboardType: TextInputType.emailAddress,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Annuler',style: TextStyle(color: Colors.grey),),
+            ),
+            TextButton(
+              onPressed: () async {
+                await _updateUserInfo(
+                  firstNameController.text,
+                  lastNameController.text,
+                  emailController.text,
+                );
+                Navigator.of(context).pop();
+                setState(() {}); // Refresh the UI with the new user data
+              },
+              child: Text(
+                'Enregistrer',
+                style: TextStyle(color: Colors.blueAccent),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    fetchUserDetails();
   }
 
   @override
@@ -459,7 +705,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onTap: () => _showBudgetsDialog(context)),
             _userAccount(context, Icons.account_circle, 'Mon Compte',
                 onTap: () => _showUserInfoDialog(context)),
-            buildBackButtonExpense(context, Icons.trending_down, 'Mes dépenses'),
+            buildBackButtonExpense(
+                context, Icons.trending_down, 'Mes dépenses'),
             _buildButton(context, Icons.history, 'Historique'),
             _buildButton(context, Icons.help_outline, 'A propos de nous'),
             buildBackButton(context, Icons.arrow_back,
@@ -478,12 +725,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void backToExpenseScreen(BuildContext context) {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => AddExpense()),
-    );
-  }
 
   Widget buildBackButton(BuildContext context, IconData icon, String label) {
     return ElevatedButton(
@@ -517,11 +758,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget buildBackButtonExpense(BuildContext context, IconData icon, String label) {
+  Widget buildBackButtonExpense(
+      BuildContext context, IconData icon, String label) {
     return Padding(
       padding: const EdgeInsets.only(top: 20.0),
       child: ElevatedButton(
-        onPressed: () => backToExpenseScreen(context), // Appeler la fonction ici
+        onPressed: () {
+          // Naviguer vers la page de dépenses
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+                builder: (context) =>
+                    AddExpense()),
+          );
+        },
         style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.all(20.0),
           backgroundColor: Colors.blueAccent[200], // Couleur de fond du bouton

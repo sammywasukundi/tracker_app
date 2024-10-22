@@ -7,7 +7,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-
 class FormBudget extends StatefulWidget {
   const FormBudget({super.key});
 
@@ -24,7 +23,8 @@ class _FormBudgetState extends State<FormBudget> {
   final _descriptionBudget = TextEditingController();
 
   List<Map<String, dynamic>> budgets = [];
-  bool _isBudgetListVisible = true; // To toggle budget list visibility
+  bool _isBudgetListVisible = true; 
+  
 
   @override
   void initState() {
@@ -54,10 +54,13 @@ class _FormBudgetState extends State<FormBudget> {
             budgets = snapshot.docs.map((doc) {
               return {
                 'id': doc.id, // Inclure l'ID du document
-                'nomBudget': doc['nomBudget'] ??
-                    'Sans nom', // Gérer les champs manquants
-                'descriptionBudget':
-                    doc['descriptionBudget'] ?? 'Sans description',
+                'nomBudget': doc['nomBudget'] ?? 'Sans nom', // Nom du budget
+                'descriptionBudget': doc['descriptionBudget'] ??
+                    'Sans description', // Description du budget
+                'dateDebut': doc['dateDebut'], // Timestamp pour date de début
+                'dateFin': doc['dateFin'], // Timestamp pour date de fin
+                'montant':
+                    doc['montant'] ?? 0.0, // Montant du budget
               };
             }).toList();
           });
@@ -581,52 +584,80 @@ class _FormBudgetState extends State<FormBudget> {
                                 itemCount: budgets.length,
                                 itemBuilder: (context, index) {
                                   final budget = budgets[index];
+
+                                  // Vérifier si 'dateDebut' et 'dateFin' ne sont pas null avant la conversion
+                                  final DateTime? dateDebut =
+                                      (budget['dateDebut'] != null)
+                                          ? (budget['dateDebut'] as Timestamp)
+                                              .toDate()
+                                          : null; // Date par défaut si null
+                                  final DateTime? dateFin =
+                                      (budget['dateFin'] != null)
+                                          ? (budget['dateFin'] as Timestamp)
+                                              .toDate()
+                                          : null; // Date par défaut si null
+
+                                  // Formater les dates seulement si elles ne sont pas nulles
+                                  final String formattedDateDebut = dateDebut !=
+                                          null
+                                      ? "${dateDebut.day}/${dateDebut.month}/${dateDebut.year}"
+                                      : "Date de début non disponible";
+                                  final String formattedDateFin = dateFin !=
+                                          null
+                                      ? "${dateFin.day}/${dateFin.month}/${dateFin.year}"
+                                      : "Date de fin non disponible";
+
                                   return Card(
                                     margin: EdgeInsets.symmetric(
                                       vertical: 4.0,
-                                    ), // Réduire la marge verticale et ajouter une marge horizontale
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(
-                                          4.0), // Bordure arrondie
-                                      side: BorderSide(
-                                          color: Colors.transparent,
-                                          width:
-                                              2.0), // Couleur et largeur de la bordure
                                     ),
-                                    color: Colors
-                                        .grey[100], // Couleur de fond du card
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(4.0),
+                                      side: BorderSide(
+                                        color: Colors.transparent,
+                                        width: 2.0,
+                                      ),
+                                    ),
+                                    color: Colors.grey[100],
                                     child: ListTile(
                                       contentPadding: EdgeInsets.symmetric(
-                                        horizontal:
-                                            12.0, // Diminuer le padding horizontal
-                                        vertical:
-                                            8.0, // Diminuer le padding vertical
+                                        horizontal: 12.0,
+                                        vertical: 8.0,
                                       ),
                                       title: Text(
                                         budget['nomBudget'] ??
                                             'Nom non disponible',
                                         style: TextStyle(
                                           fontWeight: FontWeight.w500,
-                                          fontSize:
-                                              16.0, // Diminuer la taille du texte
-                                          color: Colors
-                                              .black87, // Couleur du texte
+                                          fontSize: 16.0,
+                                          color: Colors.black87,
                                         ),
                                       ),
-                                      subtitle: Text(
-                                        budget['descriptionBudget'] ??
-                                            'Pas de description',
-                                        style: TextStyle(
-                                          fontSize:
-                                              14.0, // Diminuer la taille du sous-titre
-                                          color: Colors.grey[
-                                              700], // Couleur du sous-titre
-                                        ),
+                                      subtitle: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Du $formattedDateDebut au $formattedDateFin',
+                                            style: TextStyle(
+                                              fontSize: 14.0,
+                                              color: Colors.grey[700],
+                                            ),
+                                          ),
+                                          SizedBox(height: 4),
+                                          Text(
+                                            'Montant: \$ ${budget['montant']?.toStringAsFixed(2) ?? '0.00'}', // Si montant est null
+                                            style: TextStyle(
+                                              fontSize: 14.0,
+                                              color: Colors.grey[700],
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                       trailing: IconButton(
                                         icon: Icon(Icons.arrow_forward,
                                             color: Colors.blueAccent,
-                                            size: 20.0), // Icone plus petit
+                                            size: 20.0),
                                         onPressed: () {
                                           Navigator.push(
                                             context,
@@ -645,8 +676,8 @@ class _FormBudgetState extends State<FormBudget> {
                           )
                         : Center(
                             child: CircularProgressIndicator(
-                              color: Colors.blueAccent,
-                            )) // Afficher si la liste est vide
+                            color: Colors.blueAccent,
+                          )) // Afficher si la liste est vide
                     : SizedBox.shrink(),
               ],
             ),

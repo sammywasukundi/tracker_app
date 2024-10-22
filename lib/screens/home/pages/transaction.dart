@@ -88,12 +88,12 @@ class _TransactionScreenState extends State<TransactionScreen> {
     final QuerySnapshot snapshot =
         await FirebaseFirestore.instance.collection('Revenus').get();
 
-    snapshot.docs.forEach((doc) {
+    for (var doc in snapshot.docs) {
       revenus.add({
         'id': doc.id,
         'source': doc['source'],
       });
-    });
+    }
 
     return revenus;
   }
@@ -192,22 +192,22 @@ class _TransactionScreenState extends State<TransactionScreen> {
 
   void _showTransactionDialog(
       BuildContext context, List<Map<String, String>> revenusList) {
-    final _formKey = GlobalKey<FormState>();
-    TextEditingController _montantController = TextEditingController();
-    TextEditingController _descriptionController = TextEditingController();
-    DateTime? _selectedDate;
-    String? _selectedRevenuId;
+    final formKey = GlobalKey<FormState>();
+    TextEditingController montantController = TextEditingController();
+    TextEditingController descriptionController = TextEditingController();
+    DateTime? selectedDate;
+    String? selectedRevenuId;
 
-    Future<void> _selectDate(BuildContext context) async {
+    Future<void> selectDate(BuildContext context) async {
       final DateTime? picked = await showDatePicker(
         context: context,
         initialDate: DateTime.now(),
         firstDate: DateTime(2000),
         lastDate: DateTime(2101),
       );
-      if (picked != null && picked != _selectedDate) {
+      if (picked != null && picked != selectedDate) {
         setState(() {
-          _selectedDate = picked;
+          selectedDate = picked;
         });
       }
     }
@@ -222,13 +222,13 @@ class _TransactionScreenState extends State<TransactionScreen> {
             ),
             title: Text('Ajouter une transaction'),
             content: Form(
-              key: _formKey,
+              key: formKey,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // DropdownButton pour choisir parmi les revenus avec ID
                   DropdownButtonFormField<String>(
-                    value: _selectedRevenuId,
+                    value: selectedRevenuId,
                     decoration: InputDecoration(
                       labelText: 'Sélectionner un revenu',
                       border: OutlineInputBorder(),
@@ -245,7 +245,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                     ).toList(),
                     onChanged: (String? newValue) {
                       setState(() {
-                        _selectedRevenuId = newValue;
+                        selectedRevenuId = newValue;
                       });
                     },
                     validator: (value) {
@@ -257,7 +257,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                   ),
                   SizedBox(height: 10),
                   TextFormField(
-                    controller: _montantController,
+                    controller: montantController,
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
                       labelText: 'Montant',
@@ -272,7 +272,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                   ),
                   SizedBox(height: 10),
                   TextFormField(
-                    controller: _descriptionController,
+                    controller: descriptionController,
                     decoration: InputDecoration(
                       labelText: 'Description',
                       border: OutlineInputBorder(),
@@ -290,16 +290,16 @@ class _TransactionScreenState extends State<TransactionScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          _selectedDate == null
+                          selectedDate == null
                               ? 'Aucune date sélectionnée'
-                              : 'Date sélectionnée: ${_selectedDate!.toLocal()}'
+                              : 'Date sélectionnée: ${selectedDate!.toLocal()}'
                                   .split(' ')[0],
                         ),
                       ),
                       IconButton(
                         icon: Icon(Icons.calendar_today),
                         onPressed: () {
-                          _selectDate(context);
+                          selectDate(context);
                         },
                       ),
                     ],
@@ -319,8 +319,8 @@ class _TransactionScreenState extends State<TransactionScreen> {
               ),
               ElevatedButton(
                 onPressed: () {
-                  if (_formKey.currentState!.validate()) {
-                    if (_selectedDate == null) {
+                  if (formKey.currentState!.validate()) {
+                    if (selectedDate == null) {
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                         content: Text('Veuillez sélectionner une date'),
                       ));
@@ -329,10 +329,10 @@ class _TransactionScreenState extends State<TransactionScreen> {
 
                     // Appel de la fonction pour ajouter la transaction
                     _addTransaction(
-                      revenuId: _selectedRevenuId!,
-                      montant: double.parse(_montantController.text),
-                      description: _descriptionController.text,
-                      date: _selectedDate!,
+                      revenuId: selectedRevenuId!,
+                      montant: double.parse(montantController.text),
+                      description: descriptionController.text,
+                      date: selectedDate!,
                     );
 
                     // Fermer le dialogue après soumission
@@ -404,7 +404,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                   ),
                   child: ListTile(
                     title: Text(
-                      'Montant: ${transaction['montant']} USD',
+                      'Montant: \$ ${transaction['montant']}',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                       ), // Met le montant en gras

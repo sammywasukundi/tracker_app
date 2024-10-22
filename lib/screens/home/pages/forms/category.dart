@@ -20,6 +20,32 @@ class _AddCategorieState extends State<AddCategorie> {
   List<Map<String, dynamic>> categoryList = [];
   int categoryCount = 0;
 
+  // List<QueryDocumentSnapshot<Map<String, dynamic>>> budgets = [];
+
+  // Future<void> fetchBudgets() async {
+  //   User? currentUser = FirebaseAuth.instance.currentUser;
+
+  //   if (currentUser == null) {
+  //     print("Aucun utilisateur connecté.");
+  //     return;
+  //   }
+
+  //   try {
+  //     QuerySnapshot<Map<String, dynamic>> snapshot = await FirebaseFirestore
+  //         .instance
+  //         .collection('budget')
+  //         .where('userId', isEqualTo: currentUser.uid)
+  //         .get();
+
+  //     // Stocker les budgets dans la liste
+  //     setState(() {
+  //       budgets = snapshot.docs;
+  //     });
+  //   } catch (e) {
+  //     print('Erreur lors de la récupération des budgets : $e');
+  //   }
+  // }
+
   Future<String> getUserBudgetId(String userId) async {
     // Récupérer le budget de l'utilisateur à partir de Firestore
     QuerySnapshot snapshot = await FirebaseFirestore.instance
@@ -148,6 +174,8 @@ class _AddCategorieState extends State<AddCategorie> {
       context: context,
       builder: (context) {
         return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(4.0)),
           title: Text('Modifier la catégorie'),
           content: Form(
             child: Column(
@@ -253,6 +281,8 @@ class _AddCategorieState extends State<AddCategorie> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(4.0)),
           title: Text('Ajouter une catégorie'),
           content: Form(
             key: _formKey,
@@ -396,8 +426,74 @@ class _AddCategorieState extends State<AddCategorie> {
     );
   }
 
+  Future<void> addCategoryToFirestore(String nom, String description) async {
+    try {
+      // Récupérer l'utilisateur connecté
+      User? currentUser = FirebaseAuth.instance.currentUser;
+
+      if (currentUser == null) {
+        print('Aucun utilisateur connecté');
+        return;
+      }
+
+      // Ajouter la catégorie à Firestore en incluant l'userId
+      await FirebaseFirestore.instance.collection('categorie').add({
+        'nom': nom,
+        'description': description,
+        'userId':
+            currentUser.uid, // Associer la catégorie à l'utilisateur connecté
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      print(
+          'Catégorie ajoutée avec succès pour l\'utilisateur : ${currentUser.uid}');
+    } catch (e) {
+      print('Erreur lors de l\'ajout de la catégorie : $e');
+    }
+  }
+
+  int categoryCountInterne = 0; // Compteur de catégories ajoutées
+
+  Future<void> fetchCategories() async {
+    try {
+      QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection('categorie')
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      setState(() {
+        categoryList = snapshot.docs.map((doc) {
+          return {
+            'id': doc.id,
+            'nom': doc['nom'],
+            'description': doc['description'],
+          };
+        }).toList();
+
+        // Mettre à jour le compteur de catégories ajoutées
+        categoryCountInterne = categoryList.length;
+      });
+    } catch (e) {
+      print('Erreur lors de la récupération des catégories : $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Erreur lors de la récupération des catégories.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    List<Map<String, dynamic>> staticCategories = [
+      {'nom': 'Ménage', 'description': 'Dépenses pour le ménage'},
+      {'nom': 'Restauration', 'description': 'Dépenses pour la restauration'},
+      {'nom': 'Habillement', 'description': 'Dépenses pour l\'habillement'},
+      {'nom': 'Soin', 'description': 'Dépenses pour le soin'},
+      {'nom': 'Alimentation', 'description': 'Dépenses pour nourriture'},
+      {'nom': 'Logement', 'description': 'Dépenses pour le logement'},
+      {'nom': 'Transport', 'description': 'Dépenses pour le transport'},
+    ];
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -434,35 +530,53 @@ class _AddCategorieState extends State<AddCategorie> {
                           height: 5,
                         ),
                         Text(
-                          '$categoryCount catégories ajoutées',
+                          '$categoryCountInterne catégories internes ajoutées',
                           style: TextStyle(
                             fontSize: 12.0,
                             fontWeight: FontWeight.w400,
                             color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
+                        SizedBox(
+                          height: 5,
+                        ),
+                        // Text(
+                        //   '$categoryCount catégories externes ajoutées',
+                        //   style: TextStyle(
+                        //     fontSize: 12.0,
+                        //     fontWeight: FontWeight.w400,
+                        //     color: Theme.of(context).colorScheme.onSurface,
+                        //   ),
+                        // ),
                       ]),
                     ),
-                    IconButton(
-                      icon: Icon(
-                        Icons.add,
-                        color: Colors.blueAccent,
-                        size: 28,
-                      ),
-                      onPressed: () {
-                        // Action pour ajouter un revenu ou une catégorie
-                        _showCatFormDialog(context);
-                      },
-                    ),
+                    // IconButton(
+                    //   icon: Icon(
+                    //     Icons.add,
+                    //     color: Colors.blueAccent,
+                    //     size: 28,
+                    //   ),
+                    //   onPressed: () {
+                    //     // Action pour ajouter un revenu ou une catégorie
+                    //     _showCatFormDialog(context);
+                    //   },
+                    // ),
                   ],
                 ),
               ),
               // Première ListView
-              Expanded(
+              SizedBox(
+                height: 200,
                 child: ListView.builder(
-                  itemCount: categoryList.length,
+                  shrinkWrap: true,
+                  itemCount: staticCategories.length,
                   itemBuilder: (context, int index) {
-                    var category = categoryList[index];
+                    var category = staticCategories[index];
+
+                    // Vérifier si la catégorie est déjà ajoutée
+                    bool isCategoryAdded = categoryList
+                        .any((cat) => cat['nom'] == category['nom']);
+
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8.0),
                       child: Container(
@@ -501,69 +615,57 @@ class _AddCategorieState extends State<AddCategorie> {
                                   ),
                                 ],
                               ),
-                              // Colonne pour les actions (modifier/supprimer)
                               Row(
-                                crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
-                                  IconButton(
-                                    icon: Icon(Icons.remove,
-                                        color: Colors.redAccent),
-                                    onPressed: () async {
-                                      try {
-                                        // Vérifier que revenu n'est pas nul
-                                        // Récupérer l'ID du revenu dans la Map
-                                        String categoryId = category[
-                                            'id']; // Accéder à l'ID via la clé 'id'
-
-                                        // Vérifier que l'ID n'est pas vide
-                                        if (categoryId.isNotEmpty) {
-                                          // Appel de la fonction pour supprimer le revenu
-                                          await deleteCat(categoryId);
-
-                                          // Afficher un message de succès
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            SnackBar(
-                                                content: Text(
-                                                    'Catégorie supprimée avec succès !')),
-                                          );
-                                        } else {
-                                          throw 'L\'ID de la catégorie est invalide.';
-                                        }
-                                      } catch (e) {
-                                        // En cas d'erreur
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          SnackBar(
-                                              content: Text(
-                                                  'Erreur lors de la suppression de la catégorie : $e')),
+                                  if (!isCategoryAdded)
+                                    IconButton(
+                                      icon:
+                                          Icon(Icons.add, color: Colors.green),
+                                      onPressed: () async {
+                                        // Ajouter la catégorie
+                                        await addCategoryToFirestore(
+                                          category['nom'],
+                                          category['description'],
                                         );
-                                      }
-                                    },
-                                  ),
-                                  SizedBox(width: 4),
-                                  IconButton(
-                                    icon: Icon(Icons.edit,
-                                        color: Colors.orangeAccent),
-                                    onPressed: () {
-                                      // Vérifiez si les champs existent avant d'appeler la fonction
-                                      String id =
-                                          category['id'] ?? 'ID non disponible';
-                                      String nom =
-                                          category['nom'] ?? 'Nom inconnue';
-                                      String description =
-                                          category['description'] ??
-                                              'Description inconue';
-
-                                      // Appel de la méthode pour afficher le formulaire de mise à jour
-                                      _showUpdateFormDialog(
-                                        context,
-                                        id, // ID du revenu à modifier
-                                        nom, // Source actuelle du revenu
-                                        description, // Montant actuel du revenu
-                                      );
-                                    },
-                                  ),
+                                        // Mettre à jour l'état
+                                        await fetchCategories();
+                                      },
+                                    )
+                                  else
+                                    Row(
+                                      children: [
+                                        IconButton(
+                                          icon: Icon(Icons.remove,
+                                              color: Colors.redAccent),
+                                          onPressed: () async {
+                                            var addedCategory =
+                                                categoryList.firstWhere((cat) =>
+                                                    cat['nom'] ==
+                                                    category['nom']);
+                                            await deleteCat(
+                                                addedCategory['id']);
+                                            await fetchCategories();
+                                          },
+                                        ),
+                                        SizedBox(width: 4),
+                                        IconButton(
+                                          icon: Icon(Icons.edit,
+                                              color: Colors.orangeAccent),
+                                          onPressed: () {
+                                            var addedCategory =
+                                                categoryList.firstWhere((cat) =>
+                                                    cat['nom'] ==
+                                                    category['nom']);
+                                            _showUpdateFormDialog(
+                                              context,
+                                              addedCategory['id'],
+                                              addedCategory['nom'],
+                                              addedCategory['description'],
+                                            );
+                                          },
+                                        ),
+                                      ],
+                                    ),
                                 ],
                               ),
                             ],
@@ -574,6 +676,97 @@ class _AddCategorieState extends State<AddCategorie> {
                   },
                 ),
               ),
+
+              SizedBox(height: 16), // Espacement entre les deux ListView
+
+              // Deuxième ListView dynamique pour les catégories dans Firestore
+              // Expanded(
+              //   child: ListView.builder(
+              //     itemCount: categoryList.length,
+              //     itemBuilder: (context, int index) {
+              //       var category = categoryList[index];
+              //       return Padding(
+              //         padding: const EdgeInsets.only(bottom: 8.0),
+              //         child: Container(
+              //           decoration: BoxDecoration(
+              //             color: Colors.white,
+              //             borderRadius: BorderRadius.circular(4),
+              //           ),
+              //           child: Padding(
+              //             padding: const EdgeInsets.all(10.0),
+              //             child: Row(
+              //               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              //               children: [
+              //                 Column(
+              //                   crossAxisAlignment: CrossAxisAlignment.start,
+              //                   children: [
+              //                     Text(
+              //                       '${category['nom']}',
+              //                       style: TextStyle(
+              //                         fontSize: 14.0,
+              //                         color: Theme.of(context)
+              //                             .colorScheme
+              //                             .onSurface,
+              //                         fontWeight: FontWeight.w500,
+              //                       ),
+              //                     ),
+              //                     SizedBox(height: 12),
+              //                     Text(
+              //                       '${category['description']}',
+              //                       style: TextStyle(
+              //                         fontSize: 14.0,
+              //                         color: Theme.of(context)
+              //                             .colorScheme
+              //                             .onSurface,
+              //                         fontWeight: FontWeight.w400,
+              //                       ),
+              //                     ),
+              //                   ],
+              //                 ),
+              //                 Row(
+              //                   children: [
+              //                     IconButton(
+              //                       icon: Icon(Icons.remove,
+              //                           color: Colors.redAccent),
+              //                       onPressed: () async {
+              //                         String categoryId = category['id'];
+
+              //                         if (categoryId.isNotEmpty) {
+              //                           await deleteCat(categoryId);
+              //                           setState(() {});
+              //                         } else {
+              //                           ScaffoldMessenger.of(context)
+              //                               .showSnackBar(
+              //                             SnackBar(
+              //                                 content: Text(
+              //                                     'ID de catégorie manquant.')),
+              //                           );
+              //                         }
+              //                       },
+              //                     ),
+              //                     SizedBox(width: 4),
+              //                     IconButton(
+              //                       icon: Icon(Icons.edit,
+              //                           color: Colors.orangeAccent),
+              //                       onPressed: () {
+              //                         _showUpdateFormDialog(
+              //                           context,
+              //                           category['id'],
+              //                           category['nom'],
+              //                           category['description'],
+              //                         );
+              //                       },
+              //                     ),
+              //                   ],
+              //                 ),
+              //               ],
+              //             ),
+              //           ),
+              //         ),
+              //       );
+              //     },
+              //   ),
+              // ),
             ],
           ),
         ),

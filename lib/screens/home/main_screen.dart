@@ -3,6 +3,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 //import 'package:flutter_spinkit/flutter_spinkit.dart';
 
 class MainScreen extends StatefulWidget {
@@ -206,11 +207,11 @@ class _MainScreenState extends State<MainScreen> {
           children: [
             // Nom du budget en haut
             Text(
-              budget['nomBudget'] ?? 'Nom du budget',
-              style: TextStyle(
-                fontSize: 20.0,
+              budget['nomBudget'] ?? 'Nom du budget'.toUpperCase(),
+              style: GoogleFonts.roboto(
+                fontSize: 18.0,
                 color: Theme.of(context).colorScheme.onSurface,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w500,
               ),
             ),
 
@@ -218,11 +219,10 @@ class _MainScreenState extends State<MainScreen> {
 
             // Montant du budget
             Text(
-              '\$ ${budget['montant']?.toStringAsFixed(2) ?? 'Montant non disponible'}',
-              style: TextStyle(
-                fontSize: 25.0,
-                color: Colors.blueAccent,
-                fontWeight: FontWeight.bold,
+              'Montant total : \$ ${budget['montant']?.toStringAsFixed(2) ?? 'Montant non disponible'}',
+              style: GoogleFonts.roboto(
+                fontSize: 18.0,
+                fontWeight: FontWeight.w400,
               ),
             ),
 
@@ -248,7 +248,7 @@ class _MainScreenState extends State<MainScreen> {
                                 : 0.0, // Valeur par défaut si revenusTotal ou montant est nul
                             strokeWidth:
                                 15, // Augmenter l'épaisseur de l'indicateur
-                            backgroundColor: Colors.white30,
+                            backgroundColor: Colors.white70,
                             color: Colors.greenAccent,
                           ),
                         ),
@@ -268,12 +268,12 @@ class _MainScreenState extends State<MainScreen> {
                     ),
                     const SizedBox(
                         height: 16), // Augmenter l'espace sous le cercle
-                    const Text(
-                      'Revenus',
-                      style: TextStyle(
-                        fontSize: 16.0, // Augmenter la taille du texte
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black,
+                    Text(
+                      'Revenus : \$${revenusTotal.toStringAsFixed(2)}', // Affichage du montant total des revenus
+                      style: GoogleFonts.roboto(
+                        fontSize: 14.0, // Augmenter la taille du texte
+                        fontWeight: FontWeight.w300,
+                        color: Colors.greenAccent,
                       ),
                     ),
                   ],
@@ -295,7 +295,7 @@ class _MainScreenState extends State<MainScreen> {
                                 : 0.0, // Valeur par défaut si depensesTotal ou montant est nul
                             strokeWidth:
                                 15, // Augmenter l'épaisseur de l'indicateur
-                            backgroundColor: Colors.white30,
+                            backgroundColor: Colors.white70,
                             color: Colors.redAccent,
                           ),
                         ),
@@ -315,12 +315,12 @@ class _MainScreenState extends State<MainScreen> {
                     ),
                     const SizedBox(
                         height: 16), // Augmenter l'espace sous le cercle
-                    const Text(
-                      'Dépenses',
-                      style: TextStyle(
-                        fontSize: 16.0, // Augmenter la taille du texte
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black,
+                    Text(
+                      'Dépenses : \$${depensesTotal.toStringAsFixed(2)}', // Affichage du montant total des dépenses
+                      style: GoogleFonts.roboto(
+                        fontSize: 14.0, // Augmenter la taille du texte
+                        fontWeight: FontWeight.w300,
+                        color: Colors.redAccent,
                       ),
                     ),
                   ],
@@ -357,11 +357,21 @@ class _MainScreenState extends State<MainScreen> {
                                     as double) // Si déjà double, pas de conversion nécessaire
                             : 0.00;
 
-                        return ListTile(
-                          title: Text('Budget $budgetId'),
-                          subtitle:
-                              Text('Montant: \$${montant.toStringAsFixed(2)}'),
-                          onTap: () => onBudgetSelected(currentBudget['id']),
+                        return Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: ListTile(
+                              title: Text('Budget $budgetId',style: GoogleFonts.roboto(fontWeight: FontWeight.w400,fontSize: 12.0),),
+                              subtitle: Text(
+                                  'Montant: \$${montant.toStringAsFixed(2)}',style: GoogleFonts.roboto(fontWeight: FontWeight.w200,fontSize: 12.0),),
+                              onTap: () =>
+                                  onBudgetSelected(currentBudget['id']),
+                            ),
+                          ),
                         );
                       },
                     )
@@ -380,9 +390,9 @@ class _MainScreenState extends State<MainScreen> {
               children: [
                 Text(
                   'Mes revenus ',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
+                  style: GoogleFonts.roboto(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
                 Row(
@@ -412,7 +422,7 @@ class _MainScreenState extends State<MainScreen> {
                 ? revenus.isNotEmpty
                     ? Expanded(
                         child: Padding(
-                          padding: const EdgeInsets.only(bottom: 24.0),
+                          padding: const EdgeInsets.only(bottom: 10.0),
                           child: ListView.builder(
                             itemCount: revenus.length,
                             itemBuilder: (context, int index) {
@@ -436,23 +446,23 @@ class _MainScreenState extends State<MainScreen> {
                                           children: [
                                             Text(
                                               'Source : ${revenu['source']}',
-                                              style: TextStyle(
+                                              style: GoogleFonts.roboto(
                                                 fontSize: 14.0,
                                                 color: Theme.of(context)
                                                     .colorScheme
                                                     .onSurface,
-                                                fontWeight: FontWeight.w500,
+                                                fontWeight: FontWeight.w300,
                                               ),
                                             ),
                                             SizedBox(height: 12),
                                             Text(
-                                              'Montant : ${revenu['montant']} USD',
-                                              style: TextStyle(
+                                              'Montant :\$ ${revenu['montant']}',
+                                              style: GoogleFonts.roboto(
                                                 fontSize: 14.0,
                                                 color: Theme.of(context)
                                                     .colorScheme
                                                     .onSurface,
-                                                fontWeight: FontWeight.w400,
+                                                fontWeight: FontWeight.w300,
                                               ),
                                             ),
                                           ],
@@ -490,9 +500,9 @@ class _MainScreenState extends State<MainScreen> {
               children: [
                 Text(
                   'Mes depenses ',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
+                  style: GoogleFonts.roboto(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
                 Row(
@@ -521,7 +531,7 @@ class _MainScreenState extends State<MainScreen> {
                 ? depenses.isNotEmpty
                     ? Expanded(
                         child: Padding(
-                          padding: const EdgeInsets.only(bottom: 24.0),
+                          padding: const EdgeInsets.only(bottom: 10.0),
                           child: ListView.builder(
                             itemCount: depenses.length,
                             itemBuilder: (context, int index) {
@@ -545,23 +555,23 @@ class _MainScreenState extends State<MainScreen> {
                                           children: [
                                             Text(
                                               'Catégorie : ${depense['categoryName']}',
-                                              style: TextStyle(
+                                              style: GoogleFonts.roboto(
                                                 fontSize: 14.0,
                                                 color: Theme.of(context)
                                                     .colorScheme
                                                     .onSurface,
-                                                fontWeight: FontWeight.w500,
+                                                fontWeight: FontWeight.w300,
                                               ),
                                             ),
                                             SizedBox(height: 12),
                                             Text(
-                                              'Montant : ${depense['montant']} USD',
-                                              style: TextStyle(
+                                              'Montant : \$ ${depense['montant']}',
+                                              style: GoogleFonts.roboto(
                                                 fontSize: 14.0,
                                                 color: Theme.of(context)
                                                     .colorScheme
                                                     .onSurface,
-                                                fontWeight: FontWeight.w400,
+                                                fontWeight: FontWeight.w300,
                                               ),
                                             ),
                                           ],

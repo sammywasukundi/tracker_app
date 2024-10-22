@@ -1,4 +1,4 @@
-// ignore_for_file: prefer_const_constructors, prefer_if_null_operators, use_build_context_synchronously
+// ignore_for_file: prefer_const_constructors, prefer_if_null_operators, use_build_context_synchronously, body_might_complete_normally_catch_error
 
 import 'package:budget_app/screens/home/pages/forms/category.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -20,6 +20,32 @@ class _CategoryScreenState extends State<CategoryScreen> {
   List<Map<String, dynamic>> revenusList = [];
   int revenusCount = 0;
 
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> budgets = [];
+
+  Future<void> fetchBudgets() async {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) {
+      print("Aucun utilisateur connecté.");
+      return;
+    }
+
+    try {
+      QuerySnapshot<Map<String, dynamic>> snapshot = await FirebaseFirestore
+          .instance
+          .collection('budget')
+          .where('userId', isEqualTo: currentUser.uid)
+          .get();
+
+      // Stocker les budgets dans la liste
+      setState(() {
+        budgets = snapshot.docs;
+      });
+    } catch (e) {
+      print('Erreur lors de la récupération des budgets : $e');
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -33,13 +59,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   Future<void> fetchRevenus(String budgetId) async {
     try {
-      // Requête pour obtenir uniquement les revenus liés à ce budget
       QuerySnapshot snapshot = await FirebaseFirestore.instance
           .collection('Revenus')
           .where('budgetId', isEqualTo: budgetId) // Filtrer par l'ID du budget
           .get();
 
-      // Met à jour l'état avec la liste des revenus récupérés
       setState(() {
         revenusList = snapshot.docs
             .map((doc) => doc.data() as Map<String, dynamic>)
@@ -53,7 +77,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
         );
       }
     } catch (e) {
-      // Gestion des erreurs
       print('Erreur lors de la récupération des revenus : $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erreur lors de la récupération des revenus.')),
@@ -61,9 +84,10 @@ class _CategoryScreenState extends State<CategoryScreen> {
     }
   }
 
-  Future<void> addRevenu(String source, double montant) async {
+  Future<void> addRevenu(
+      String source, double montant, String budgetId, String budgetName) async {
     try {
-      // Fetch the active budget for the current user (based on the authenticated user)
+      // Fetch the current user
       User? currentUser = FirebaseAuth.instance.currentUser;
 
       if (currentUser == null) {
@@ -71,41 +95,29 @@ class _CategoryScreenState extends State<CategoryScreen> {
         return;
       }
 
-      // Fetch the user's active budget
-      QuerySnapshot<Map<String, dynamic>> budgetSnapshot =
-          await FirebaseFirestore.instance
-              .collection('budget')
-              .where('userId', isEqualTo: currentUser.uid)
-              .limit(1)
-              .get();
-
-      if (budgetSnapshot.docs.isEmpty) {
-        print("Aucun budget trouvé pour l'utilisateur");
-        return; // Stop if no budget is found
-      }
-
-      // Get the budget ID
-      String budgetId = budgetSnapshot.docs.first.id;
-
-      // Add the revenue along with the budgetId
+      // Ajouter le revenu avec l'ID et le nom du budget sélectionné
       DocumentReference docRef =
           await FirebaseFirestore.instance.collection('Revenus').add({
         'source': source,
         'montant': montant,
-        'budgetId': budgetId, // Only include the budgetId
+        'budgetId': budgetId, // Utilise l'ID du budget sélectionné
+        'budgetName': budgetName, // Enregistre aussi le nom du budget
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // Add to the list and update the state
+      // Mettre à jour l'état local
       setState(() {
         revenusList.add({
           'id': docRef.id,
           'source': source,
           'montant': montant,
-          'budgetId': budgetId, // Also include the budgetId in the list
+          'budgetId': budgetId,
+          'budgetName': budgetName, // Ajoute le nom du budget dans la liste
         });
-        revenusCount = revenusList.length; // Update the count
+        revenusCount = revenusList.length; // Met à jour le compteur
       });
+
+      print("Revenu ajouté avec succès pour le budget $budgetName.");
     } catch (e) {
       print("Erreur lors de l'ajout du revenu : $e");
     }
@@ -182,6 +194,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(4.0)),
           title: Text('Modifier le revenu'),
           content: Form(
             child: Column(
@@ -282,76 +296,121 @@ class _CategoryScreenState extends State<CategoryScreen> {
   }
 
   // formulaire pour ajouter un revenu
-  void _showCategoryFormDialog(BuildContext context) {
+  void _showCategoryFormDialog(BuildContext context) async {
+    // Récupérer les budgets avant d'afficher le formulaire
+    await fetchBudgets();
+
+    String? selectedBudgetId;
+    String? selectedBudgetName;
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Ajouter un révenu'),
-          content: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                // Nom du revenu
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(1),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 8.0),
-                    child: TextFormField(
-                      controller: _sourceRevenu,
-                      keyboardType: TextInputType.text,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(4.0)),
+          title: Text('Ajouter un revenu'),
+          content: SingleChildScrollView(
+            // Ajoutez SingleChildScrollView ici
+            child: Form(
+              key: _formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    // Dropdown pour sélectionner le budget
+                    DropdownButtonFormField<String>(
+                      value: selectedBudgetId,
                       decoration: InputDecoration(
-                        border: InputBorder.none,
-                        hintText: 'Description/Soucre',
-                        hintStyle: TextStyle(
-                          color: Colors.grey,
-                          fontWeight: FontWeight.w200,
-                        ),
-                        suffixIcon: Icon(
-                          Icons.source,
-                          color: Colors.grey,
+                        labelText: 'Sélectionnez un budget',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: budgets.map((budget) {
+                        var budgetData = budget.data();
+                        return DropdownMenuItem<String>(
+                          value: budget.id,
+                          child:
+                              Text(budgetData['nomBudget'] ?? 'Budget sans nom'),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          selectedBudgetId = newValue;
+                          selectedBudgetName = budgets
+                              .firstWhere((budget) => budget.id == newValue)
+                              .data()['nomBudget'];
+                        });
+                      },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Veuillez sélectionner un budget';
+                        }
+                        return null;
+                      },
+                    ),
+                    SizedBox(height: 10),
+                    // Champ pour la source du revenu
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 8.0),
+                        child: TextFormField(
+                          controller: _sourceRevenu,
+                          keyboardType: TextInputType.text,
+                          decoration: InputDecoration(
+                            border: InputBorder.none,
+                            hintText: 'Description/Source',
+                            hintStyle: TextStyle(
+                              color: Colors.grey,
+                              fontWeight: FontWeight.w200,
+                            ),
+                            suffixIcon: Icon(
+                              Icons.source,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          validator: (val) => val == null || val.isEmpty
+                              ? 'Source du revenu requise'
+                              : null,
                         ),
                       ),
-                      validator: (val) => val == null || val.isEmpty
-                          ? 'Nom du révenu requis'
-                          : null,
                     ),
-                  ),
-                ),
-                SizedBox(height: 10),
-                // montant
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 8.0),
-                    child: TextFormField(
-                      controller: _montantRevenu,
-                      keyboardType: TextInputType.numberWithOptions(),
-                      decoration: InputDecoration(
-                        border: InputBorder.none,
-                        hintText: 'Montant pour le révenu',
-                        hintStyle: TextStyle(
-                          color: Colors.grey,
-                          fontWeight: FontWeight.w200,
-                        ),
-                        suffixIcon: Icon(
-                          Icons.money,
-                          color: Colors.grey,
+                    SizedBox(height: 10),
+                    // Champ pour le montant du revenu
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 8.0),
+                        child: TextFormField(
+                          controller: _montantRevenu,
+                          keyboardType: TextInputType.numberWithOptions(),
+                          decoration: InputDecoration(
+                            border: InputBorder.none,
+                            hintText: 'Montant pour le revenu',
+                            hintStyle: TextStyle(
+                              color: Colors.grey,
+                              fontWeight: FontWeight.w200,
+                            ),
+                            suffixIcon: Icon(
+                              Icons.money,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          validator: (val) => val == null || val.isEmpty
+                              ? 'Montant requis'
+                              : null,
                         ),
                       ),
-                      validator: (val) =>
-                          val == null || val.isEmpty ? 'Montant requis' : null,
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
           actions: [
@@ -373,37 +432,29 @@ class _CategoryScreenState extends State<CategoryScreen> {
             ),
             GestureDetector(
               onTap: () async {
-                if (_formKey.currentState!.validate()) {
-                  // Récupération des valeurs du formulaire
+                if (_formKey.currentState!.validate() &&
+                    selectedBudgetId != null) {
                   String source = _sourceRevenu.text;
                   double montant = double.parse(_montantRevenu.text);
 
-                  // Récupérer l'ID de l'utilisateur actuel
-                  User? user = FirebaseAuth.instance.currentUser;
-                  String userId = user!.uid;
+                  // Appeler la fonction pour ajouter le revenu
+                  await addRevenu(
+                      source, montant, selectedBudgetId!, selectedBudgetName!);
 
-                  if (userId.isNotEmpty) {
-                    // Appel de la fonction pour ajouter le revenu
-                    await addRevenu(source, montant);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text(
+                            'Revenu ajouté avec succès pour $selectedBudgetName !')),
+                  );
 
-                    // Afficher un message de succès
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Revenu ajouté avec succès !')),
-                    );
+                  _sourceRevenu.clear();
+                  _montantRevenu.clear();
 
-                    // Réinitialiser les champs du formulaire
-                    _sourceRevenu.clear();
-                    _montantRevenu.clear();
-
-                    // Fermer le formulaire
-                    Navigator.of(context).pop();
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content: Text(
-                              'Veuillez vous connecter pour ajouter un revenu.')),
-                    );
-                  }
+                  Navigator.of(context).pop();
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Veuillez sélectionner un budget.')),
+                  );
                 }
               },
               child: Container(
@@ -518,7 +569,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                   ),
                                   SizedBox(height: 12),
                                   Text(
-                                    'Montant : ${revenu['montant']} USD',
+                                    'Montant : \$ ${revenu['montant']}',
                                     style: TextStyle(
                                       fontSize: 14.0,
                                       color: Theme.of(context)
