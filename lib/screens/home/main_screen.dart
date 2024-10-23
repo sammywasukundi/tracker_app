@@ -173,7 +173,7 @@ class _MainScreenState extends State<MainScreen> {
     fetchBudgets();
     String budgetId = "budgetId";
 
-    fetchBudgetDetails(budgetId); // Passez l'ID du budget
+    fetchBudgetDetails(budgetId); 
 
     Future.delayed(Duration(seconds: 5), () {
       setState(() {
@@ -182,7 +182,7 @@ class _MainScreenState extends State<MainScreen> {
     });
 
     Future.delayed(
-      Duration(seconds: 5),
+      Duration(seconds: 2),
       () {
         _isLoadingExpense = false;
       },
@@ -228,7 +228,6 @@ class _MainScreenState extends State<MainScreen> {
 
             const SizedBox(height: 20),
 
-            // Cercles côte à côte pour les revenus et les dépenses
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
@@ -239,39 +238,39 @@ class _MainScreenState extends State<MainScreen> {
                       alignment: Alignment.center,
                       children: [
                         SizedBox(
-                          height: 120, // Augmenter la taille du cercle
-                          width: 120, // Augmenter la taille du cercle
+                          height: 120, 
+                          width: 120,
                           child: CircularProgressIndicator(
                             value: (budget['montant'] != null &&
                                     budget['montant'] > 0)
                                 ? revenusTotal / budget['montant']
-                                : 0.0, // Valeur par défaut si revenusTotal ou montant est nul
+                                : 0.0, 
                             strokeWidth:
-                                15, // Augmenter l'épaisseur de l'indicateur
+                                15, 
                             backgroundColor: Colors.white70,
                             color: Colors.greenAccent,
                           ),
                         ),
                         Padding(
                           padding: const EdgeInsets.all(
-                              20.0), // Ajouter du padding interne pour l'espace
+                              20.0), 
                           child: Text(
                             '${(budget['montant'] != null && budget['montant'] > 0) ? ((revenusTotal / budget['montant']) * 100).toStringAsFixed(1) : '0.0'}%',
                             style: TextStyle(
                               color: Colors.greenAccent,
                               fontWeight: FontWeight.bold,
-                              fontSize: 18.0, // Augmenter la taille du texte
+                              fontSize: 18.0, 
                             ),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(
-                        height: 16), // Augmenter l'espace sous le cercle
+                        height: 16), 
                     Text(
-                      'Revenus : \$${revenusTotal.toStringAsFixed(2)}', // Affichage du montant total des revenus
+                      'Revenus : \$${revenusTotal.toStringAsFixed(2)}', 
                       style: GoogleFonts.roboto(
-                        fontSize: 14.0, // Augmenter la taille du texte
+                        fontSize: 14.0, 
                         fontWeight: FontWeight.w300,
                         color: Colors.greenAccent,
                       ),
@@ -286,39 +285,39 @@ class _MainScreenState extends State<MainScreen> {
                       alignment: Alignment.center,
                       children: [
                         SizedBox(
-                          height: 120, // Augmenter la taille du cercle
-                          width: 120, // Augmenter la taille du cercle
+                          height: 120, 
+                          width: 120,
                           child: CircularProgressIndicator(
                             value: (budget['montant'] != null &&
                                     budget['montant'] > 0)
                                 ? depensesTotal / budget['montant']
-                                : 0.0, // Valeur par défaut si depensesTotal ou montant est nul
+                                : 0.0, 
                             strokeWidth:
-                                15, // Augmenter l'épaisseur de l'indicateur
+                                15, 
                             backgroundColor: Colors.white70,
                             color: Colors.redAccent,
                           ),
                         ),
                         Padding(
                           padding: const EdgeInsets.all(
-                              20.0), // Ajouter du padding interne pour l'espace
+                              20.0), 
                           child: Text(
                             '${(budget['montant'] != null && budget['montant'] > 0) ? ((depensesTotal / budget['montant']) * 100).toStringAsFixed(1) : '0.0'}%',
                             style: TextStyle(
                               color: Colors.redAccent,
                               fontWeight: FontWeight.bold,
-                              fontSize: 18.0, // Augmenter la taille du texte
+                              fontSize: 18.0, 
                             ),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(
-                        height: 16), // Augmenter l'espace sous le cercle
+                        height: 16), 
                     Text(
-                      'Dépenses : \$${depensesTotal.toStringAsFixed(2)}', // Affichage du montant total des dépenses
+                      'Dépenses : \$${depensesTotal.toStringAsFixed(2)}', 
                       style: GoogleFonts.roboto(
-                        fontSize: 14.0, // Augmenter la taille du texte
+                        fontSize: 14.0, 
                         fontWeight: FontWeight.w300,
                         color: Colors.redAccent,
                       ),
@@ -346,15 +345,14 @@ class _MainScreenState extends State<MainScreen> {
                           );
                         }
 
-                        // Utiliser 'id' au lieu de 'budgetId' et vérifier les valeurs
                         String budgetId =
                             currentBudget['nomBudget'] ?? 'ID non disponible';
                         var montant = currentBudget['montant'] != null
                             ? (currentBudget['montant'] is int
                                 ? (currentBudget['montant'] as int)
-                                    .toDouble() // Convertir int en double
+                                    .toDouble()
                                 : currentBudget['montant']
-                                    as double) // Si déjà double, pas de conversion nécessaire
+                                    as double) 
                             : 0.00;
 
                         return Padding(

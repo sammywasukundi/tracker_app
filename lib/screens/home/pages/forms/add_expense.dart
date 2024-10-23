@@ -103,7 +103,6 @@ class _AddCategoryState extends State<AddCategory> {
             GestureDetector(
               onTap: () {
                 if (_formKey.currentState!.validate()) {
-                  // Logique pour ajouter la catégorie
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Catégorie ajoutée !')),
                   );

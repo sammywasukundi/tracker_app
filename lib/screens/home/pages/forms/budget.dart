@@ -1,11 +1,14 @@
 // ignore_for_file: prefer_const_constructors, curly_braces_in_flow_control_structures
 
+import 'package:budget_app/model/budged.dart';
 import 'package:budget_app/screens/home/home_page.dart';
 import 'package:budget_app/screens/home/pages/forms/revenu.dart';
+import 'package:budget_app/services/dialog.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 
 class FormBudget extends StatefulWidget {
   const FormBudget({super.key});
@@ -22,9 +25,8 @@ class _FormBudgetState extends State<FormBudget> {
   final _nomBudget = TextEditingController();
   final _descriptionBudget = TextEditingController();
 
-  List<Map<String, dynamic>> budgets = [];
-  bool _isBudgetListVisible = true; 
-  
+  List<BudgetModel> budgets = [];
+  bool _isBudgetListVisible = true;
 
   @override
   void initState() {
@@ -33,118 +35,97 @@ class _FormBudgetState extends State<FormBudget> {
   }
 
   Future<void> fetchBudgets() async {
-    try {
-      // Obtenez l'utilisateur actuellement connecté
-      User? user = FirebaseAuth.instance.currentUser;
-
-      // Vérifiez si l'utilisateur est connecté
-      if (user != null) {
-        String userId = user.uid; // Récupérer l'ID de l'utilisateur
-
-        // Fetch documents from the Firestore collection 'budget' where 'userId' matches the logged-in user
-        QuerySnapshot snapshot = await FirebaseFirestore.instance
-            .collection('budget')
-            .where('userId', isEqualTo: userId) // Filtrer par 'userId'
-            .get();
-
-        // Vérifier si des documents existent dans la collection
-        if (snapshot.docs.isNotEmpty) {
-          // Mettre à jour l'état avec la liste des budgets
-          setState(() {
-            budgets = snapshot.docs.map((doc) {
-              return {
-                'id': doc.id, // Inclure l'ID du document
-                'nomBudget': doc['nomBudget'] ?? 'Sans nom', // Nom du budget
-                'descriptionBudget': doc['descriptionBudget'] ??
-                    'Sans description', // Description du budget
-                'dateDebut': doc['dateDebut'], // Timestamp pour date de début
-                'dateFin': doc['dateFin'], // Timestamp pour date de fin
-                'montant':
-                    doc['montant'] ?? 0.0, // Montant du budget
-              };
-            }).toList();
-          });
-        } else {
-          // Gérer le cas où aucun document n'est trouvé
-          setState(() {
-            budgets = [];
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text('Aucun budget trouvé pour cet utilisateur.')),
-          );
-        }
-      } else {
-        // L'utilisateur n'est pas connecté
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Utilisateur non connecté.')),
-        );
-      }
-    } catch (e) {
-      // Gérer les erreurs lors du processus de récupération
-      print('Erreur lors de la récupération des budgets : $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur lors de la récupération des budgets.')),
-      );
-    }
+    budgets = await BudgetModel.getList;
+    setState(() {});
   }
 
-  Future<void> addBudgetWithUserReference(
+  Future<void> add(
       String userId,
       DateTime dateDebut,
       DateTime dateFin,
-      int montant,
+      double montant,
       String nomBudget,
       String descriptionBudget,
       List<String> revenusIds,
       List<String> categoriesIds,
       List<String> expensesIds) async {
-    try {
-      // Check for overlapping budgets
-      QuerySnapshot existingBudgets = await FirebaseFirestore.instance
-          .collection('budget')
-          .where('userId', isEqualTo: userId)
-          .get();
-
-      bool hasOverlap = false;
-
-      // Check if any existing budget overlaps with the new budget's date range
-      for (var doc in existingBudgets.docs) {
-        DateTime existingStart = (doc['dateDebut'] as Timestamp).toDate();
-        DateTime existingEnd = (doc['dateFin'] as Timestamp).toDate();
-
-        if (!(dateFin.isBefore(existingStart) ||
-            dateDebut.isAfter(existingEnd))) {
-          hasOverlap = true;
-          break;
-        }
-      }
-
-      if (hasOverlap) {
-        print(
-            "Impossible d'ajouter le budget : la période se chevauche avec un autre budget existant.");
-        return;
-      }
-
-      // No overlap, proceed with adding the new budget
-      await FirebaseFirestore.instance.collection('budget').add({
-        'userId': userId,
-        'dateDebut': dateDebut,
-        'dateFin': dateFin,
-        'montant': montant,
-        'nomBudget': nomBudget,
-        'descriptionBudget': descriptionBudget,
-        'revenus': revenusIds,
-        'categories': categoriesIds,
-        'depenses': expensesIds,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      print("Budget ajouté avec succès !");
-    } catch (e) {
-      print("Erreur lors de l'ajout du budget : $e");
+        await EasyLoading.show(status : 'Patientez...');
+    final budget = BudgetModel.avecParametre(
+        id: userId,
+        dateDebut: dateDebut,
+        dateFin: dateFin,
+        montant: montant,
+        nomBudget: nomBudget,
+        descriptionBudget: descriptionBudget,
+        revenusIds: revenusIds,
+        categories: categoriesIds,
+        depense: expensesIds);
+    final result = await budget.add();
+    if (result) {
+    EasyLoading.dismiss();
+      showSuccess(
+          context, 'Reussis !', 'Votre buget a été enregistrée avec succèss !');
+    } else {
+      showInfo(context, 'Info', 'Votre budget n\'a pas aboutit');
     }
   }
+
+  // Future<void> addBudgetWithUserReference(
+  //     String userId,
+  //     DateTime dateDebut,
+  //     DateTime dateFin,
+  //     int montant,
+  //     String nomBudget,
+  //     String descriptionBudget,
+  //     List<String> revenusIds,
+  //     List<String> categoriesIds,
+  //     List<String> expensesIds) async {
+  //   try {
+  //     // Check for overlapping budgets
+  //     QuerySnapshot existingBudgets = await FirebaseFirestore.instance
+  //         .collection('budget')
+  //         .where('userId', isEqualTo: userId)
+  //         .get();
+
+  //     bool hasOverlap = false;
+
+  //     // Check if any existing budget overlaps with the new budget's date range
+  //     for (var doc in existingBudgets.docs) {
+  //       DateTime existingStart = (doc['dateDebut'] as Timestamp).toDate();
+  //       DateTime existingEnd = (doc['dateFin'] as Timestamp).toDate();
+
+  //       if (!(dateFin.isBefore(existingStart) ||
+  //           dateDebut.isAfter(existingEnd))) {
+  //         hasOverlap = true;
+  //         break;
+  //       }
+  //     }
+
+  //     if (hasOverlap) {
+  //       print(
+  //           "Impossible d'ajouter le budget : la période se chevauche avec un autre budget existant.");
+  //       return;
+  //     }
+
+  //     // No overlap, proceed with adding the new budget
+  //     await FirebaseFirestore.instance.collection('budget').add({
+  //       'userId': userId,
+  //       'dateDebut': dateDebut,
+  //       'dateFin': dateFin,
+  //       'montant': montant,
+  //       'nomBudget': nomBudget,
+  //       'descriptionBudget': descriptionBudget,
+  //       'revenus': revenusIds,
+  //       'categories': categoriesIds,
+  //       'depenses': expensesIds,
+  //       'createdAt': FieldValue.serverTimestamp(),
+  //     });
+
+  //     print("Budget ajouté avec succès !");
+  //   } catch (e) {
+  //     print("Erreur lors de l'ajout du budget : $e");
+  //   }
+  // }
 
   // Méthode pour afficher le DatePicker et sélectionner la date
   Future<void> _selectDate(BuildContext context, DateTime? initialDate,
@@ -373,16 +354,24 @@ class _FormBudgetState extends State<FormBudget> {
                               ];
 
                               // Ajouter le budget dans Firestore avec le userId
-                              await addBudgetWithUserReference(
+                              await add(
                                   userId, // Passer le userId ici
                                   _dateDebut!,
                                   _dateFin!,
-                                  int.parse(_montant.text),
+                                  double.parse(_montant.text),
                                   _nomBudget.text,
                                   _descriptionBudget.text,
                                   revenusIds,
                                   categoriesIds,
-                                  expensesIds);
+                                  expensesIds).then((e){
+                                    Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => CategoryScreen(),
+                                ),
+                              );
+
+                                  });
 
                               // Afficher un message de validation
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -398,14 +387,8 @@ class _FormBudgetState extends State<FormBudget> {
                               _descriptionBudget.clear();
 
                               // Naviguer vers la page des catégories
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => CategoryScreen(),
-                                ),
-                              );
+                              
                             } else {
-                              // L'utilisateur n'est pas authentifié
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                     content: Text('Utilisateur non connecté')),
@@ -458,65 +441,38 @@ class _FormBudgetState extends State<FormBudget> {
                             setState(() {
                               if (value == 'Nom (A-Z)') {
                                 budgets.sort((a, b) {
-                                  String nomA = a['nomBudget'] ??
-                                      ''; // Valeur par défaut si null
-                                  String nomB = b['nomBudget'] ?? '';
+                                  String nomA =
+                                      a.nomBudget; // Valeur par défaut si null
+                                  String nomB = b.nomBudget;
                                   return nomA.compareTo(nomB);
                                 });
                               } else if (value == 'Nom (Z-A)') {
                                 budgets.sort((a, b) {
-                                  String nomA = a['nomBudget'] ??
-                                      ''; // Valeur par défaut si null
-                                  String nomB = b['nomBudget'] ?? '';
+                                  String nomA =
+                                      a.nomBudget; // Valeur par défaut si null
+                                  String nomB = b.nomBudget;
                                   return nomB.compareTo(nomA);
                                 });
                               } else if (value == 'Date croissante') {
                                 budgets.sort((a, b) {
-                                  DateTime? dateA = a['dateDebut'] != null
-                                      ? (a['dateDebut'] as Timestamp).toDate()
-                                      : null;
-                                  DateTime? dateB = b['dateDebut'] != null
-                                      ? (b['dateDebut'] as Timestamp).toDate()
-                                      : null;
+                                  DateTime? dateA = a.dateDebut;
+                                  DateTime? dateB = b.dateDebut;
 
-                                  if (dateA == null)
-                                    return 1; // Place les budgets sans date en dernier
-                                  if (dateB == null) return -1;
                                   return dateA.compareTo(dateB);
                                 });
                               } else if (value == 'Date décroissante') {
                                 budgets.sort((a, b) {
-                                  DateTime? dateA = a['dateDebut'] != null
-                                      ? (a['dateDebut'] as Timestamp).toDate()
-                                      : null;
-                                  DateTime? dateB = b['dateDebut'] != null
-                                      ? (b['dateDebut'] as Timestamp).toDate()
-                                      : null;
+                                  DateTime dateA = a.dateDebut;
+                                  DateTime dateB = b.dateDebut;
 
-                                  if (dateA == null)
-                                    return 1; // Place les budgets sans date en dernier
-                                  if (dateB == null) return -1;
                                   return dateB.compareTo(dateA);
                                 });
                               } else if (value == 'Durée') {
                                 budgets.sort((a, b) {
-                                  DateTime? dateDebutA = a['dateDebut'] != null
-                                      ? (a['dateDebut'] as Timestamp).toDate()
-                                      : null;
-                                  DateTime? dateFinA = a['dateFin'] != null
-                                      ? (a['dateFin'] as Timestamp).toDate()
-                                      : null;
-                                  DateTime? dateDebutB = b['dateDebut'] != null
-                                      ? (b['dateDebut'] as Timestamp).toDate()
-                                      : null;
-                                  DateTime? dateFinB = b['dateFin'] != null
-                                      ? (b['dateFin'] as Timestamp).toDate()
-                                      : null;
-
-                                  if (dateDebutA == null || dateFinA == null)
-                                    return 1; // Ignore si pas de dates
-                                  if (dateDebutB == null || dateFinB == null)
-                                    return -1;
+                                  DateTime? dateDebutA = a.dateDebut;
+                                  DateTime? dateFinA = a.dateFin;
+                                  DateTime? dateDebutB = b.dateDebut;
+                                  DateTime? dateFinB = b.dateFin;
 
                                   int dureeA =
                                       dateFinA.difference(dateDebutA).inDays;
@@ -585,23 +541,13 @@ class _FormBudgetState extends State<FormBudget> {
                                 itemBuilder: (context, index) {
                                   final budget = budgets[index];
 
-                                  // Vérifier si 'dateDebut' et 'dateFin' ne sont pas null avant la conversion
-                                  final DateTime? dateDebut =
-                                      (budget['dateDebut'] != null)
-                                          ? (budget['dateDebut'] as Timestamp)
-                                              .toDate()
-                                          : null; // Date par défaut si null
-                                  final DateTime? dateFin =
-                                      (budget['dateFin'] != null)
-                                          ? (budget['dateFin'] as Timestamp)
-                                              .toDate()
-                                          : null; // Date par défaut si null
+                                  final DateTime dateDebut = (budget
+                                      .dateDebut); 
+                                  final DateTime? dateFin = (budget
+                                      .dateFin); 
 
-                                  // Formater les dates seulement si elles ne sont pas nulles
-                                  final String formattedDateDebut = dateDebut !=
-                                          null
-                                      ? "${dateDebut.day}/${dateDebut.month}/${dateDebut.year}"
-                                      : "Date de début non disponible";
+                                  final String formattedDateDebut =
+                                      "${dateDebut.day}/${dateDebut.month}/${dateDebut.year}";
                                   final String formattedDateFin = dateFin !=
                                           null
                                       ? "${dateFin.day}/${dateFin.month}/${dateFin.year}"
@@ -625,8 +571,7 @@ class _FormBudgetState extends State<FormBudget> {
                                         vertical: 8.0,
                                       ),
                                       title: Text(
-                                        budget['nomBudget'] ??
-                                            'Nom non disponible',
+                                        budget.nomBudget,
                                         style: TextStyle(
                                           fontWeight: FontWeight.w500,
                                           fontSize: 16.0,
@@ -646,7 +591,7 @@ class _FormBudgetState extends State<FormBudget> {
                                           ),
                                           SizedBox(height: 4),
                                           Text(
-                                            'Montant: \$ ${budget['montant']?.toStringAsFixed(2) ?? '0.00'}', // Si montant est null
+                                            'Montant: \$ ${budget.montant.toStringAsFixed(2)}', // Si montant est null
                                             style: TextStyle(
                                               fontSize: 14.0,
                                               color: Colors.grey[700],
@@ -662,8 +607,8 @@ class _FormBudgetState extends State<FormBudget> {
                                           Navigator.push(
                                             context,
                                             MaterialPageRoute(
-                                              builder: (context) => HomePage(
-                                                  budgetId: budget['id']),
+                                              builder: (context) =>
+                                                  HomePage(budgetId: budget.id),
                                             ),
                                           );
                                         },

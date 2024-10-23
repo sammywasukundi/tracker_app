@@ -49,9 +49,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
   @override
   void initState() {
     super.initState();
-    // Assurez-vous que vous avez une variable budgetId de type String
     String budgetId =
-        "budgetId"; // Remplacez par votre logique pour obtenir l'ID du budget
+        "budgetId"; 
 
     // Appelez la méthode fetchRevenus avec l'ID du budget
     fetchRevenus(budgetId);
@@ -61,14 +60,14 @@ class _CategoryScreenState extends State<CategoryScreen> {
     try {
       QuerySnapshot snapshot = await FirebaseFirestore.instance
           .collection('Revenus')
-          .where('budgetId', isEqualTo: budgetId) // Filtrer par l'ID du budget
+          .where('budgetId', isEqualTo: budgetId) 
           .get();
 
       setState(() {
         revenusList = snapshot.docs
             .map((doc) => doc.data() as Map<String, dynamic>)
             .toList();
-        revenusCount = revenusList.length; // Met à jour le nombre de revenus
+        revenusCount = revenusList.length; 
       });
 
       if (revenusList.isEmpty) {
@@ -87,7 +86,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
   Future<void> addRevenu(
       String source, double montant, String budgetId, String budgetName) async {
     try {
-      // Fetch the current user
       User? currentUser = FirebaseAuth.instance.currentUser;
 
       if (currentUser == null) {
@@ -95,26 +93,24 @@ class _CategoryScreenState extends State<CategoryScreen> {
         return;
       }
 
-      // Ajouter le revenu avec l'ID et le nom du budget sélectionné
       DocumentReference docRef =
           await FirebaseFirestore.instance.collection('Revenus').add({
         'source': source,
         'montant': montant,
-        'budgetId': budgetId, // Utilise l'ID du budget sélectionné
-        'budgetName': budgetName, // Enregistre aussi le nom du budget
+        'budgetId': budgetId, 
+        'budgetName': budgetName, 
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // Mettre à jour l'état local
       setState(() {
         revenusList.add({
           'id': docRef.id,
           'source': source,
           'montant': montant,
           'budgetId': budgetId,
-          'budgetName': budgetName, // Ajoute le nom du budget dans la liste
+          'budgetName': budgetName, 
         });
-        revenusCount = revenusList.length; // Met à jour le compteur
+        revenusCount = revenusList.length; 
       });
 
       print("Revenu ajouté avec succès pour le budget $budgetName.");
@@ -297,7 +293,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   // formulaire pour ajouter un revenu
   void _showCategoryFormDialog(BuildContext context) async {
-    // Récupérer les budgets avant d'afficher le formulaire
     await fetchBudgets();
 
     String? selectedBudgetId;
@@ -311,7 +306,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(4.0)),
           title: Text('Ajouter un revenu'),
           content: SingleChildScrollView(
-            // Ajoutez SingleChildScrollView ici
             child: Form(
               key: _formKey,
               child: SingleChildScrollView(
@@ -589,17 +583,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                         color: Colors.redAccent),
                                     onPressed: () async {
                                       try {
-                                        // Vérifier que revenu n'est pas nul
-                                        // Récupérer l'ID du revenu dans la Map
                                         String revenuId = revenu[
-                                            'id']; // Accéder à l'ID via la clé 'id'
+                                            'id']; 
 
-                                        // Vérifier que l'ID n'est pas vide
                                         if (revenuId.isNotEmpty) {
-                                          // Appel de la fonction pour supprimer le revenu
                                           await deleteRevenu(revenuId);
 
-                                          // Afficher un message de succès
                                           ScaffoldMessenger.of(context)
                                               .showSnackBar(
                                             SnackBar(
@@ -625,21 +614,20 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                     icon: Icon(Icons.edit,
                                         color: Colors.orangeAccent),
                                     onPressed: () {
-                                      // Vérifiez si les champs existent avant d'appeler la fonction
+
                                       String id =
                                           revenu['id'] ?? 'ID non disponible';
                                       String source =
                                           revenu['source'] ?? 'Source inconnue';
                                       double montant = revenu['montant'] != null
                                           ? revenu['montant']
-                                          : 0.0; // Valeur par défaut pour montant
+                                          : 0.0; 
 
-                                      // Appel de la méthode pour afficher le formulaire de mise à jour
                                       _showUpdateFormDialog(
                                         context,
-                                        id, // ID du revenu à modifier
-                                        source, // Source actuelle du revenu
-                                        montant, // Montant actuel du revenu
+                                        id, 
+                                        source, 
+                                        montant, 
                                       );
                                     },
                                   ),

@@ -52,6 +52,13 @@ dependencies:
   image_picker: ^1.1.2
   firebase_storage: ^12.3.1
   fl_chart: ^0.69.0
+  #package pour afficher les dialogue des questions
+  awesome_dialog: ^3.2.1
+  #package pour imprimer ou generer les etat de sortie
+  printing: ^5.13.3
+  #affichage des  loading
+  flutter_easyloading: ^3.0.5
+
 
 dev_dependencies:
   flutter_test:

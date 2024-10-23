@@ -18,12 +18,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? imageUrl;
   User? user = FirebaseAuth.instance.currentUser;
 
-  Map<String, dynamic>? userDetails; // Détails utilisateur
+  Map<String, dynamic>? userDetails; 
 
   Future<void> fetchUserDetails() async {
-    // Récupère les détails utilisateur depuis Firestore
     final details = await fetchCurrentUserDetails();
-    // Met à jour l'état avec les données utilisateur
     setState(() {
       userDetails = details;
     });
@@ -31,7 +29,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<Map<String, dynamic>?> fetchCurrentUserDetails() async {
     try {
-      // Vérifier si l'utilisateur est connecté
       User? currentUser = FirebaseAuth.instance.currentUser;
 
       if (currentUser == null) {
@@ -39,10 +36,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return null;
       }
 
-      // Récupérer l'UID de l'utilisateur connecté
       String uid = currentUser.uid;
 
-      // Chercher dans Firestore l'utilisateur avec cet UID
       DocumentSnapshot userDoc =
           await FirebaseFirestore.instance.collection('users').doc(uid).get();
 
@@ -51,7 +46,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return null;
       }
 
-      // Récupérer les détails de l'utilisateur
       Map<String, dynamic> userData = {
         'firstName': userDoc['first name'],
         'lastName': userDoc['last name'],
@@ -697,9 +691,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: GridView.count(
-          crossAxisCount: 2, // Deux boutons par ligne
-          crossAxisSpacing: 14.0, // Espace horizontal entre les boutons
-          mainAxisSpacing: 14.0, // Espace vertical entre les boutons
+          crossAxisCount: 2, 
+          crossAxisSpacing: 14.0, 
+          mainAxisSpacing: 14.0, 
           children: <Widget>[
             _buildButtonBudget(context, Icons.account_balance, 'Mes Budgets',
                 onTap: () => _showBudgetsDialog(context)),
@@ -774,9 +768,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         },
         style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.all(20.0),
-          backgroundColor: Colors.blueAccent[200], // Couleur de fond du bouton
+          backgroundColor: Colors.blueAccent[200], 
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8), // Bords arrondis
+            borderRadius: BorderRadius.circular(8), 
           ),
         ),
         child: Column(
@@ -784,8 +778,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: <Widget>[
             Icon(
               icon,
-              size: 40.0, // Taille de l'icône
-              color: Colors.white, // Couleur de l'icône
+              size: 40.0, 
+              color: Colors.white, 
             ),
             const SizedBox(height: 8),
             Text(
@@ -819,10 +813,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 TextButton(
                   onPressed: () {
                     // Si l'utilisateur annule
-                    Navigator.of(context).pop(); // Fermer le dialogue
+                    Navigator.of(context).pop(); 
                   },
                   style: TextButton.styleFrom(
-                    shape: const StadiumBorder(), // Forme de bouton en stade
+                    shape: const StadiumBorder(), 
                   ),
                   child: Text(
                     "Annuler",
@@ -834,12 +828,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 TextButton(
                   onPressed: () {
-                    // Si l'utilisateur confirme la déconnexion
-                    FirebaseAuth.instance.signOut(); // Action de déconnexion
-                    Navigator.of(context).pop(); // Fermer le dialogue
+                    FirebaseAuth.instance.signOut(); 
+                    Navigator.of(context).pop(); 
                   },
                   style: TextButton.styleFrom(
-                    shape: const StadiumBorder(), // Forme de bouton en stade
+                    shape: const StadiumBorder(), 
                   ),
                   child: Text(
                     "Déconnexion",
@@ -857,18 +850,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
       style: ElevatedButton.styleFrom(
         padding: const EdgeInsets.all(20.0),
         backgroundColor:
-            Colors.blueAccent[200], // Espacement à l'intérieur du bouton
+            Colors.blueAccent[200], 
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8), // Bords arrondis
-        ), // Couleur de fond du bouton
+          borderRadius: BorderRadius.circular(8), 
+        ), 
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
           Icon(
             icon,
-            size: 40.0, // Taille de l'icône
-            color: Colors.white, // Couleur de l'icône
+            size: 40.0, 
+            color: Colors.white, 
           ),
           const SizedBox(height: 8),
           Text(
