@@ -1,5 +1,8 @@
 // ignore_for_file: prefer_const_constructors, prefer_const_literals_to_create_immutables, unnecessary_null_comparison
 
+import 'package:budget_app/model/budged.dart';
+import 'package:budget_app/model/depense.dart';
+import 'package:budget_app/model/revenue.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -15,38 +18,28 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   String? budgetId; // ID du budget à récupérer
-  Map<String, dynamic> budget = {};
-  List<Map<String, dynamic>> revenus = [];
-  List<Map<String, dynamic>> depenses = [];
+  BudgetModel budget = BudgetModel();
+  List<RevenueModel> revenus = [];
+  List<DepenseModel> depenses = [];
   bool _isIncomeListVisible = true; // To toggle budget list visibility
   bool _isLoadingIncome = true;
   bool _isExpenseListVisible = true;
   bool _isLoadingExpense = true;
   int revenusCount = 0;
 
-  List<Map<String, dynamic>> budgets = [];
+  List<BudgetModel> budgets = [];
 
   Future<void> fetchBudgets() async {
     try {
       User? user = FirebaseAuth.instance.currentUser;
 
       if (user != null) {
-        String userId = user.uid;
 
-        QuerySnapshot snapshot = await FirebaseFirestore.instance
-            .collection('budget')
-            .where('userId', isEqualTo: userId)
-            .get();
+        final snapshot = await BudgetModel.getList;
 
-        if (snapshot.docs.isNotEmpty) {
+        if (snapshot.isNotEmpty) {
           setState(() {
-            budgets = snapshot.docs.map((doc) {
-              return {
-                'id': doc.id, // ID du document dans Firestore
-                'nomBudget': doc['nomBudget'] ?? 'Sans nom',
-                'montant': doc['montant'] ?? 0.00, // Montant du budget
-              };
-            }).toList();
+            budgets = snapshot;
           });
         } else {
           setState(() {
@@ -81,8 +74,8 @@ class _MainScreenState extends State<MainScreen> {
         print('Utilisateur connecté : ${user.uid}');
 
         // Récupérer le budget basé sur l'ID de budget spécifié
-        DocumentSnapshot budgetSnapshot = await FirebaseFirestore.instance
-            .collection('budget')
+        final budgetSnapshot = await FirebaseFirestore.instance
+            .collection(BudgetModel.collection)
             .doc(budgetId)
             .get();
 
@@ -99,15 +92,12 @@ class _MainScreenState extends State<MainScreen> {
 
           // Mettre à jour le budget avec les données récupérées
           setState(() {
-            budget = {
-              'nomBudget': budgetData['nomBudget'] ?? 'Sans nom',
-              'montant': budgetData['montant'] ?? 0,
-            };
+            budget = BudgetModel.froMap(budgetData);
           });
 
           // Récupérer les revenus liés au budget (pas besoin de vérifier l'utilisateur)
           QuerySnapshot revenusSnapshot = await FirebaseFirestore.instance
-              .collection('Revenus')
+              .collection(RevenueModel.collection)
               .where('budgetId', isEqualTo: budgetId)
               .get();
 
@@ -120,7 +110,7 @@ class _MainScreenState extends State<MainScreen> {
 
           // Récupérer les dépenses liées au budget (pas besoin de vérifier l'utilisateur)
           QuerySnapshot depensesSnapshot = await FirebaseFirestore.instance
-              .collection('depense')
+              .collection(DepenseModel.collection)
               .where('budgetId', isEqualTo: budgetId)
               .get();
 
@@ -133,17 +123,16 @@ class _MainScreenState extends State<MainScreen> {
 
           // Mettre à jour l'état pour inclure les revenus et les dépenses récupérés
           setState(() {
-            revenus = revenusList;
-            depenses = depensesList;
+            revenus =
+                (revenusList).map((e) => RevenueModel.fromMap(e)).toList();
+            depenses =
+                depensesList.map((e) => DepenseModel.fromMap(e)).toList();
           });
         } else {
           print('Aucun budget trouvé pour cet ID.');
           // Aucune entrée trouvée pour ce budget
           setState(() {
-            budget = {
-              'nomBudget': 'Sans nom',
-              'montant': 0,
-            };
+            budget = BudgetModel();
             revenus = [];
             depenses = [];
           });
@@ -173,7 +162,7 @@ class _MainScreenState extends State<MainScreen> {
     fetchBudgets();
     String budgetId = "budgetId";
 
-    fetchBudgetDetails(budgetId); 
+    fetchBudgetDetails(budgetId);
 
     Future.delayed(Duration(seconds: 5), () {
       setState(() {
@@ -196,9 +185,9 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     double revenusTotal =
-        revenus.fold(0.0, (sum, item) => sum + item['montant']);
+        revenus.fold<double>(0.0, (i, item) => i + item.montant);
     double depensesTotal =
-        depenses.fold(0.0, (sum, item) => sum + item['montant']);
+        depenses.fold<double>(0.0, (i, item) => i + item.montant);
 
     return SafeArea(
       child: Padding(
@@ -207,7 +196,7 @@ class _MainScreenState extends State<MainScreen> {
           children: [
             // Nom du budget en haut
             Text(
-              budget['nomBudget'] ?? 'Nom du budget'.toUpperCase(),
+              budget.nomBudget.toUpperCase(),
               style: GoogleFonts.roboto(
                 fontSize: 18.0,
                 color: Theme.of(context).colorScheme.onSurface,
@@ -219,7 +208,7 @@ class _MainScreenState extends State<MainScreen> {
 
             // Montant du budget
             Text(
-              'Montant total : \$ ${budget['montant']?.toStringAsFixed(2) ?? 'Montant non disponible'}',
+              'Montant total : \$ ${budget.montant.toStringAsFixed(2)}',
               style: GoogleFonts.roboto(
                 fontSize: 18.0,
                 fontWeight: FontWeight.w400,
@@ -238,39 +227,36 @@ class _MainScreenState extends State<MainScreen> {
                       alignment: Alignment.center,
                       children: [
                         SizedBox(
-                          height: 120, 
+                          height: 120,
                           width: 120,
                           child: CircularProgressIndicator(
-                            value: (budget['montant'] != null &&
-                                    budget['montant'] > 0)
-                                ? revenusTotal / budget['montant']
-                                : 0.0, 
-                            strokeWidth:
-                                15, 
+                            value:
+                                (budget.montant != null && budget.montant > 0)
+                                    ? revenusTotal / budget.montant
+                                    : 0.0,
+                            strokeWidth: 15,
                             backgroundColor: Colors.white70,
                             color: Colors.greenAccent,
                           ),
                         ),
                         Padding(
-                          padding: const EdgeInsets.all(
-                              20.0), 
+                          padding: const EdgeInsets.all(20.0),
                           child: Text(
-                            '${(budget['montant'] != null && budget['montant'] > 0) ? ((revenusTotal / budget['montant']) * 100).toStringAsFixed(1) : '0.0'}%',
+                            '${(budget.montant != null && budget.montant > 0) ? ((revenusTotal / budget.montant) * 100).toStringAsFixed(1) : '0.0'}%',
                             style: TextStyle(
                               color: Colors.greenAccent,
                               fontWeight: FontWeight.bold,
-                              fontSize: 18.0, 
+                              fontSize: 18.0,
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(
-                        height: 16), 
+                    const SizedBox(height: 16),
                     Text(
-                      'Revenus : \$${revenusTotal.toStringAsFixed(2)}', 
+                      'Revenus : \$${revenusTotal.toStringAsFixed(2)}',
                       style: GoogleFonts.roboto(
-                        fontSize: 14.0, 
+                        fontSize: 14.0,
                         fontWeight: FontWeight.w300,
                         color: Colors.greenAccent,
                       ),
@@ -285,39 +271,36 @@ class _MainScreenState extends State<MainScreen> {
                       alignment: Alignment.center,
                       children: [
                         SizedBox(
-                          height: 120, 
+                          height: 120,
                           width: 120,
                           child: CircularProgressIndicator(
-                            value: (budget['montant'] != null &&
-                                    budget['montant'] > 0)
-                                ? depensesTotal / budget['montant']
-                                : 0.0, 
-                            strokeWidth:
-                                15, 
+                            value:
+                                (budget.montant != null && budget.montant > 0)
+                                    ? depensesTotal / budget.montant
+                                    : 0.0,
+                            strokeWidth: 15,
                             backgroundColor: Colors.white70,
                             color: Colors.redAccent,
                           ),
                         ),
                         Padding(
-                          padding: const EdgeInsets.all(
-                              20.0), 
+                          padding: const EdgeInsets.all(20.0),
                           child: Text(
-                            '${(budget['montant'] != null && budget['montant'] > 0) ? ((depensesTotal / budget['montant']) * 100).toStringAsFixed(1) : '0.0'}%',
+                            '${(budget.montant != null && budget.montant > 0) ? ((depensesTotal / budget.montant) * 100).toStringAsFixed(1) : '0.0'}%',
                             style: TextStyle(
                               color: Colors.redAccent,
                               fontWeight: FontWeight.bold,
-                              fontSize: 18.0, 
+                              fontSize: 18.0,
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(
-                        height: 16), 
+                    const SizedBox(height: 16),
                     Text(
-                      'Dépenses : \$${depensesTotal.toStringAsFixed(2)}', 
+                      'Dépenses : \$${depensesTotal.toStringAsFixed(2)}',
                       style: GoogleFonts.roboto(
-                        fontSize: 14.0, 
+                        fontSize: 14.0,
                         fontWeight: FontWeight.w300,
                         color: Colors.redAccent,
                       ),
@@ -338,22 +321,15 @@ class _MainScreenState extends State<MainScreen> {
                         var currentBudget = budgets[index];
 
                         // Vérifier si currentBudget n'est pas null
-                        if (currentBudget == null || currentBudget.isEmpty) {
+                        if (currentBudget == null || currentBudget.id.isEmpty) {
                           return ListTile(
                             title: Text('Budget non disponible'),
                             subtitle: Text('Montant: \$0.00'),
                           );
                         }
 
-                        String budgetId =
-                            currentBudget['nomBudget'] ?? 'ID non disponible';
-                        var montant = currentBudget['montant'] != null
-                            ? (currentBudget['montant'] is int
-                                ? (currentBudget['montant'] as int)
-                                    .toDouble()
-                                : currentBudget['montant']
-                                    as double) 
-                            : 0.00;
+                        String budgetId = currentBudget.nomBudget;
+                        var montant = currentBudget.montant;
 
                         return Padding(
                           padding: const EdgeInsets.all(8.0),
@@ -363,11 +339,19 @@ class _MainScreenState extends State<MainScreen> {
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: ListTile(
-                              title: Text('Budget $budgetId',style: GoogleFonts.roboto(fontWeight: FontWeight.w400,fontSize: 12.0),),
+                              title: Text(
+                                'Budget $budgetId',
+                                style: GoogleFonts.roboto(
+                                    fontWeight: FontWeight.w400,
+                                    fontSize: 12.0),
+                              ),
                               subtitle: Text(
-                                  'Montant: \$${montant.toStringAsFixed(2)}',style: GoogleFonts.roboto(fontWeight: FontWeight.w200,fontSize: 12.0),),
-                              onTap: () =>
-                                  onBudgetSelected(currentBudget['id']),
+                                'Montant: \$${montant.toStringAsFixed(2)}',
+                                style: GoogleFonts.roboto(
+                                    fontWeight: FontWeight.w200,
+                                    fontSize: 12.0),
+                              ),
+                              onTap: () => onBudgetSelected(currentBudget.id),
                             ),
                           ),
                         );
@@ -443,7 +427,7 @@ class _MainScreenState extends State<MainScreen> {
                                               CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              'Source : ${revenu['source']}',
+                                              'Source : ${revenu.source}',
                                               style: GoogleFonts.roboto(
                                                 fontSize: 14.0,
                                                 color: Theme.of(context)
@@ -454,7 +438,7 @@ class _MainScreenState extends State<MainScreen> {
                                             ),
                                             SizedBox(height: 12),
                                             Text(
-                                              'Montant :\$ ${revenu['montant']}',
+                                              'Montant :\$ ${revenu.montant}',
                                               style: GoogleFonts.roboto(
                                                 fontSize: 14.0,
                                                 color: Theme.of(context)
@@ -552,7 +536,7 @@ class _MainScreenState extends State<MainScreen> {
                                               CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              'Catégorie : ${depense['categoryName']}',
+                                              'Catégorie : ${depense.categoryName}',
                                               style: GoogleFonts.roboto(
                                                 fontSize: 14.0,
                                                 color: Theme.of(context)
@@ -563,7 +547,7 @@ class _MainScreenState extends State<MainScreen> {
                                             ),
                                             SizedBox(height: 12),
                                             Text(
-                                              'Montant : \$ ${depense['montant']}',
+                                              'Montant : \$ ${depense.montant}',
                                               style: GoogleFonts.roboto(
                                                 fontSize: 14.0,
                                                 color: Theme.of(context)

@@ -1,7 +1,9 @@
 // ignore_for_file: prefer_const_constructors, prefer_if_null_operators, use_build_context_synchronously, body_might_complete_normally_catch_error
 
+import 'package:budget_app/model/budged.dart';
+import 'package:budget_app/model/revenue.dart';
 import 'package:budget_app/screens/home/pages/forms/category.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:budget_app/services/firebase/firebase_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -17,10 +19,10 @@ class _CategoryScreenState extends State<CategoryScreen> {
   final _sourceRevenu = TextEditingController();
   final _montantRevenu = TextEditingController();
 
-  List<Map<String, dynamic>> revenusList = [];
+  List<RevenueModel> revenusList = [];
   int revenusCount = 0;
 
-  List<QueryDocumentSnapshot<Map<String, dynamic>>> budgets = [];
+  List<BudgetModel> budgets = [];
 
   Future<void> fetchBudgets() async {
     User? currentUser = FirebaseAuth.instance.currentUser;
@@ -31,15 +33,16 @@ class _CategoryScreenState extends State<CategoryScreen> {
     }
 
     try {
-      QuerySnapshot<Map<String, dynamic>> snapshot = await FirebaseFirestore
-          .instance
-          .collection('budget')
-          .where('userId', isEqualTo: currentUser.uid)
-          .get();
+      // QuerySnapshot<Map<String, dynamic>> snapshot = await FirebaseFirestore
+      //     .instance
+      //     .collection('budget')
+      //     .where('userId', isEqualTo: currentUser.uid)
+      //     .get();
 
       // Stocker les budgets dans la liste
+      final result = await BudgetModel.getList;
       setState(() {
-        budgets = snapshot.docs;
+        budgets = result;
       });
     } catch (e) {
       print('Erreur lors de la récupération des budgets : $e');
@@ -49,8 +52,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
   @override
   void initState() {
     super.initState();
-    String budgetId =
-        "budgetId"; 
+    String budgetId = "budgetId";
 
     // Appelez la méthode fetchRevenus avec l'ID du budget
     fetchRevenus(budgetId);
@@ -58,16 +60,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   Future<void> fetchRevenus(String budgetId) async {
     try {
-      QuerySnapshot snapshot = await FirebaseFirestore.instance
-          .collection('Revenus')
-          .where('budgetId', isEqualTo: budgetId) 
-          .get();
+      final snapshot = await RevenueModel.getList;
 
       setState(() {
-        revenusList = snapshot.docs
-            .map((doc) => doc.data() as Map<String, dynamic>)
-            .toList();
-        revenusCount = revenusList.length; 
+        revenusList = snapshot;
+        revenusCount = revenusList.length;
       });
 
       if (revenusList.isEmpty) {
@@ -83,8 +80,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
     }
   }
 
-  Future<void> addRevenu(
-      String source, double montant, String budgetId, String budgetName) async {
+  Future<void> addRevenu(RevenueModel revenu) async {
     try {
       User? currentUser = FirebaseAuth.instance.currentUser;
 
@@ -93,98 +89,91 @@ class _CategoryScreenState extends State<CategoryScreen> {
         return;
       }
 
-      DocumentReference docRef =
-          await FirebaseFirestore.instance.collection('Revenus').add({
-        'source': source,
-        'montant': montant,
-        'budgetId': budgetId, 
-        'budgetName': budgetName, 
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      // DocumentReference docRef =
+      //     await FirebaseFirestore.instance.collection('Revenus').add({
+      //   'source': source,
+      //   'montant': montant,
+      //   'budgetId': budgetId,
+      //   'budgetName': budgetName,
+      //   'createdAt': FieldValue.serverTimestamp(),
+      // });
+      await revenu.add();
+      final result = await RevenueModel.getList;
 
       setState(() {
-        revenusList.add({
-          'id': docRef.id,
-          'source': source,
-          'montant': montant,
-          'budgetId': budgetId,
-          'budgetName': budgetName, 
-        });
-        revenusCount = revenusList.length; 
+        revenusList = result;
+        revenusCount = revenusList.length;
       });
 
-      print("Revenu ajouté avec succès pour le budget $budgetName.");
+      print("Revenu ajouté avec succès pour le budget ${revenu.budgetId}.");
     } catch (e) {
       print("Erreur lors de l'ajout du revenu : $e");
     }
   }
 
 // Supprimer le revenu de la collection
-  Future<void> deleteRevenu(String revenuId) async {
-    await FirebaseFirestore.instance
-        .collection('Revenus')
-        .doc(revenuId)
-        .delete();
+  Future<void> deleteRevenu(RevenueModel revenu) async {
+    await revenu.delete();
+    final result = await RevenueModel.getList;
 
     setState(() {
-      revenusList.removeWhere((revenu) => revenu['id'] == revenuId);
+      revenusList = result;
       revenusCount = revenusList.length; // Mettre à jour le nombre
     });
   }
 
   //update un revenu
-  Future<void> updateRevenu(
-      String revenuId, String newSource, double newMontant) async {
-    try {
-      // Récupérer le document
-      DocumentSnapshot docSnapshot = await FirebaseFirestore.instance
-          .collection('Revenus')
-          .doc(revenuId)
-          .get();
+  // Future<void> updateRevenu(
+  //     String revenuId, String newSource, double newMontant) async {
+  //   try {
+  //     // Récupérer le document
+  //     DocumentSnapshot docSnapshot = await FirebaseFirestore.instance
+  //         .collection('Revenus')
+  //         .doc(revenuId)
+  //         .get();
 
-      // Vérifier si le document existe
-      if (docSnapshot.exists) {
-        // Si le document existe, procéder à la mise à jour
-        await FirebaseFirestore.instance
-            .collection('Revenus')
-            .doc(revenuId)
-            .update({
-          'source': newSource,
-          'montant': newMontant,
-        });
+  //     // Vérifier si le document existe
+  //     if (docSnapshot.exists) {
+  //       // Si le document existe, procéder à la mise à jour
+  //       await FirebaseFirestore.instance
+  //           .collection('Revenus')
+  //           .doc(revenuId)
+  //           .update({
+  //         'source': newSource,
+  //         'montant': newMontant,
+  //       });
 
-        // Mettre à jour localement les données si vous les stockez dans une liste
-        setState(() {
-          int index =
-              revenusList.indexWhere((revenu) => revenu['id'] == revenuId);
-          if (index != -1) {
-            revenusList[index]['source'] = newSource;
-            revenusList[index]['montant'] = newMontant;
-          }
-        });
-      } else {
-        // Si le document n'existe pas, afficher une erreur
-        throw FirebaseException(
-            plugin: 'cloud_firestore',
-            message: 'Le document avec ID $revenuId n\'existe pas.',
-            code: 'not-found');
-      }
-    } catch (e) {
-      // Gérer l'erreur
-      print('Erreur lors de la mise à jour du revenu : $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur : $e')),
-      );
-    }
-  }
+  //       // Mettre à jour localement les données si vous les stockez dans une liste
+  //       setState(() {
+  //         int index =
+  //             revenusList.indexWhere((revenu) => revenu['id'] == revenuId);
+  //         if (index != -1) {
+  //           revenusList[index]['source'] = newSource;
+  //           revenusList[index]['montant'] = newMontant;
+  //         }
+  //       });
+  //     } else {
+  //       // Si le document n'existe pas, afficher une erreur
+  //       throw FirebaseException(
+  //           plugin: 'cloud_firestore',
+  //           message: 'Le document avec ID $revenuId n\'existe pas.',
+  //           code: 'not-found');
+  //     }
+  //   } catch (e) {
+  //     // Gérer l'erreur
+  //     print('Erreur lors de la mise à jour du revenu : $e');
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       SnackBar(content: Text('Erreur : $e')),
+  //     );
+  //   }
+  // }
 
   //formulaire pour update un revenu
-  void _showUpdateFormDialog(
-      BuildContext context, String revenuId, String source, double montant) {
+  void _showUpdateFormDialog(BuildContext context, RevenueModel revenu) {
     TextEditingController sourceController =
-        TextEditingController(text: source);
+        TextEditingController(text: revenu.source);
     TextEditingController montantController =
-        TextEditingController(text: montant.toString());
+        TextEditingController(text: revenu.montant.toString());
 
     showDialog(
       context: context,
@@ -262,8 +251,9 @@ class _CategoryScreenState extends State<CategoryScreen> {
             TextButton(
               onPressed: () async {
                 // Appel de la fonction pour mettre à jour le revenu
-                await updateRevenu(revenuId, sourceController.text,
-                    double.parse(montantController.text));
+                await addRevenu(revenu
+                  ..source = sourceController.text
+                  ..montant = double.parse(montantController.text));
 
                 // Fermer la boîte de dialogue
                 Navigator.of(context).pop();
@@ -320,11 +310,9 @@ class _CategoryScreenState extends State<CategoryScreen> {
                         border: OutlineInputBorder(),
                       ),
                       items: budgets.map((budget) {
-                        var budgetData = budget.data();
                         return DropdownMenuItem<String>(
                           value: budget.id,
-                          child:
-                              Text(budgetData['nomBudget'] ?? 'Budget sans nom'),
+                          child: Text(budget.nomBudget),
                         );
                       }).toList(),
                       onChanged: (String? newValue) {
@@ -332,7 +320,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                           selectedBudgetId = newValue;
                           selectedBudgetName = budgets
                               .firstWhere((budget) => budget.id == newValue)
-                              .data()['nomBudget'];
+                              .nomBudget;
                         });
                       },
                       validator: (value) {
@@ -432,8 +420,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
                   double montant = double.parse(_montantRevenu.text);
 
                   // Appeler la fonction pour ajouter le revenu
-                  await addRevenu(
-                      source, montant, selectedBudgetId!, selectedBudgetName!);
+                  final revenu = RevenueModel.avecParametre(
+                      id: generateID(),
+                      budgetId: selectedBudgetId!,
+                      montant: montant,
+                      source: source);
+                  await addRevenu(revenu);
 
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -552,7 +544,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Source : ${revenu['source']}',
+                                    'Source : ${revenu.source}',
                                     style: TextStyle(
                                       fontSize: 14.0,
                                       color: Theme.of(context)
@@ -563,7 +555,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                   ),
                                   SizedBox(height: 12),
                                   Text(
-                                    'Montant : \$ ${revenu['montant']}',
+                                    'Montant : \$ ${revenu.montant}',
                                     style: TextStyle(
                                       fontSize: 14.0,
                                       color: Theme.of(context)
@@ -583,21 +575,13 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                         color: Colors.redAccent),
                                     onPressed: () async {
                                       try {
-                                        String revenuId = revenu[
-                                            'id']; 
-
-                                        if (revenuId.isNotEmpty) {
-                                          await deleteRevenu(revenuId);
-
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            SnackBar(
-                                                content: Text(
-                                                    'Revenu supprimé avec succès !')),
-                                          );
-                                        } else {
-                                          throw 'L\'ID du revenu est invalide.';
-                                        }
+                                        await deleteRevenu(revenu);
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                              content: Text(
+                                                  'Revenu supprimé avec succès !')),
+                                        );
                                       } catch (e) {
                                         // En cas d'erreur
                                         ScaffoldMessenger.of(context)
@@ -614,20 +598,9 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                     icon: Icon(Icons.edit,
                                         color: Colors.orangeAccent),
                                     onPressed: () {
-
-                                      String id =
-                                          revenu['id'] ?? 'ID non disponible';
-                                      String source =
-                                          revenu['source'] ?? 'Source inconnue';
-                                      double montant = revenu['montant'] != null
-                                          ? revenu['montant']
-                                          : 0.0; 
-
                                       _showUpdateFormDialog(
                                         context,
-                                        id, 
-                                        source, 
-                                        montant, 
+                                        revenu,
                                       );
                                     },
                                   ),

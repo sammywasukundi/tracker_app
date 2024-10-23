@@ -1,5 +1,9 @@
 // ignore_for_file: prefer_const_constructors
 
+import 'package:budget_app/model/budged.dart';
+import 'package:budget_app/model/depense.dart';
+import 'package:budget_app/model/revenue.dart';
+import 'package:budget_app/model/user.dart';
 import 'package:budget_app/screens/home/pages/forms/budget.dart';
 import 'package:budget_app/screens/home/pages/forms/expense.dart';
 import 'package:budget_app/screens/home/pages/welcome.dart';
@@ -18,7 +22,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? imageUrl;
   User? user = FirebaseAuth.instance.currentUser;
 
-  Map<String, dynamic>? userDetails; 
+  Map<String, dynamic>? userDetails;
 
   Future<void> fetchUserDetails() async {
     final details = await fetchCurrentUserDetails();
@@ -38,8 +42,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       String uid = currentUser.uid;
 
-      DocumentSnapshot userDoc =
-          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection(UserModel.collection)
+          .doc(uid)
+          .get();
 
       if (!userDoc.exists) {
         print('Aucun utilisateur trouvé pour cet UID: $uid.');
@@ -47,8 +53,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
 
       Map<String, dynamic> userData = {
-        'firstName': userDoc['first name'],
-        'lastName': userDoc['last name'],
+        'fName': userDoc['fName'],
+        'lName': userDoc['lName'],
         'email': userDoc['email'],
         'profile': userDoc['profile'],
         'createdAt': userDoc['createdAt'] != null
@@ -76,7 +82,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     // Récupérer les budgets depuis Firestore
-    List<DocumentSnapshot> budgets = await _fetchUserBudgets(user.uid);
+    List<BudgetModel> budgets = await _fetchUserBudgets();
 
     // Afficher la boîte de dialogue sans bordures
     showDialog(
@@ -127,8 +133,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             shrinkWrap: true,
                             itemCount: budgets.length,
                             itemBuilder: (context, index) {
-                              var budget =
-                                  budgets[index].data() as Map<String, dynamic>;
+                              var budget = budgets[index];
                               return Card(
                                 margin: EdgeInsets.symmetric(vertical: 8.0),
                                 elevation: 4,
@@ -153,14 +158,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     ),
                                   ),
                                   title: Text(
-                                    budget['nomBudget'] ?? 'Budget sans nom',
+                                    budget.nomBudget,
                                     style: TextStyle(
                                       fontWeight: FontWeight.w600,
                                       fontSize: 16.0,
                                     ),
                                   ),
                                   subtitle: Text(
-                                    'Montant: \$ ${budget['montant'] ?? '0'}',
+                                    'Montant: \$ ${budget.montant}',
                                     style: TextStyle(
                                       color: Colors.grey[600],
                                       fontSize: 14.0,
@@ -172,7 +177,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     onPressed: () {
                                       _confirmDeleteBudget(
                                         context,
-                                        budgets[index].id,
+                                        budgets[index],
                                       );
                                     },
                                   ),
@@ -245,7 +250,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
 // Fonction pour supprimer un budget avec confirmation
-  void _confirmDeleteBudget(BuildContext context, String budgetId) {
+  void _confirmDeleteBudget(BuildContext context, BudgetModel budget) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -263,7 +268,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             TextButton(
               onPressed: () async {
-                _deleteBudget(budgetId);
+                _deleteBudget(budget);
                 Navigator.of(context)
                     .pop(); // Fermer le dialog après suppression
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -279,41 +284,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
 // Fonction pour supprimer un budget
-  Future<void> _deleteBudget(String budgetId) async {
+  Future<void> _deleteBudget(BudgetModel budget) async {
     try {
       // Start a batch
       WriteBatch batch = FirebaseFirestore.instance.batch();
 
       // Delete the budget document
-      DocumentReference budgetRef =
-          FirebaseFirestore.instance.collection('budget').doc(budgetId);
+      DocumentReference budgetRef = FirebaseFirestore.instance
+          .collection(BudgetModel.collection)
+          .doc(budget.id);
       batch.delete(budgetRef);
 
       // Delete related revenues
       QuerySnapshot revenuSnapshot = await FirebaseFirestore.instance
-          .collection('Revenus')
-          .where('budgetId', isEqualTo: budgetId)
+          .collection(RevenueModel.collection)
+          .where('budgetId', isEqualTo: budget.id)
           .get();
 
       for (var doc in revenuSnapshot.docs) {
         batch.delete(doc.reference); // Delete each revenue linked to the budget
       }
 
-      // Delete related categories
-      QuerySnapshot categorySnapshot = await FirebaseFirestore.instance
-          .collection('categories')
-          .where('budgetId', isEqualTo: budgetId)
-          .get();
-
-      for (var doc in categorySnapshot.docs) {
-        batch
-            .delete(doc.reference); // Delete each category linked to the budget
-      }
 
       // Delete related expenses
       QuerySnapshot expenseSnapshot = await FirebaseFirestore.instance
-          .collection('depense')
-          .where('budgetId', isEqualTo: budgetId)
+          .collection(DepenseModel.collection)
+          .where('budgetId', isEqualTo: budget.id)
           .get();
 
       for (var doc in expenseSnapshot.docs) {
@@ -331,13 +327,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
 // Fonction pour récupérer les budgets de l'utilisateur depuis Firestore
-  Future<List<DocumentSnapshot>> _fetchUserBudgets(String userId) async {
-    QuerySnapshot querySnapshot = await FirebaseFirestore.instance
-        .collection('budget')
-        .where('userId', isEqualTo: userId)
-        .get();
-
-    return querySnapshot.docs;
+  Future<List<BudgetModel>> _fetchUserBudgets() async {
+    return await BudgetModel.getList;
   }
 
 // Fonction pour construire les boutons
@@ -387,7 +378,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 return SizedBox(
                   height: 180,
                   child: Center(
-                    child: CircularProgressIndicator(color: Colors.blueAccent,),
+                    child: CircularProgressIndicator(
+                      color: Colors.blueAccent,
+                    ),
                   ),
                 );
               }
@@ -405,7 +398,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               final userDetails = snapshot.data!;
               String userName =
-                  '${userDetails['firstName']} ${userDetails['lastName']}';
+                  '${userDetails['fName']} ${userDetails['lName']}';
               String userEmail = userDetails['email'] ?? 'Email non disponible';
               String userPhotoUrl = userDetails['profile'] ??
                   ''; // Assuming 'profile' contains the photo URL
@@ -439,7 +432,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 style: TextStyle(
                                     fontSize: 16, fontWeight: FontWeight.w600),
                               ),
-                              SizedBox(height: 10.0,),
+                              SizedBox(
+                                height: 10.0,
+                              ),
                               Text(
                                 userEmail,
                                 style: TextStyle(fontSize: 12),
@@ -449,7 +444,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ],
                       ),
                     ),
-                    SizedBox(height: 20.0,),
+                    SizedBox(
+                      height: 20.0,
+                    ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
@@ -513,7 +510,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       // Delete the user document from Firestore
       await FirebaseFirestore.instance
-          .collection('users')
+          .collection(UserModel.collection)
           .doc(currentUser.uid)
           .delete();
 
@@ -586,11 +583,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       // Update the user's Firestore document
       await FirebaseFirestore.instance
-          .collection('users')
+          .collection(UserModel.collection)
           .doc(currentUser.uid)
           .update({
-        'first name': firstName,
-        'last name': lastName,
+        'fName': firstName,
+        'lName': lastName,
         'email': email,
       });
 
@@ -617,9 +614,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _showEditUserDialog(BuildContext context) {
     TextEditingController firstNameController =
-        TextEditingController(text: userDetails?['firstName'] ?? '');
+        TextEditingController(text: userDetails?['fName'] ?? '');
     TextEditingController lastNameController =
-        TextEditingController(text: userDetails?['lastName'] ?? '');
+        TextEditingController(text: userDetails?['lName'] ?? '');
     TextEditingController emailController =
         TextEditingController(text: userDetails?['email'] ?? '');
 
@@ -637,17 +634,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 TextFormField(
                   controller: firstNameController,
-                  decoration: InputDecoration(labelText: 'Prénom',border: OutlineInputBorder(),),
+                  decoration: InputDecoration(
+                    labelText: 'Prénom',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-                SizedBox(height: 10.0,),
+                SizedBox(
+                  height: 10.0,
+                ),
                 TextFormField(
                   controller: lastNameController,
-                  decoration: InputDecoration(labelText: 'Nom de famille',border: OutlineInputBorder(),),
+                  decoration: InputDecoration(
+                    labelText: 'Nom de famille',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-                SizedBox(height: 10.0,),
+                SizedBox(
+                  height: 10.0,
+                ),
                 TextFormField(
                   controller: emailController,
-                  decoration: InputDecoration(labelText: 'Email',border: OutlineInputBorder(),),
+                  decoration: InputDecoration(
+                    labelText: 'Email',
+                    border: OutlineInputBorder(),
+                  ),
                   keyboardType: TextInputType.emailAddress,
                 ),
               ],
@@ -656,7 +666,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text('Annuler',style: TextStyle(color: Colors.grey),),
+              child: Text(
+                'Annuler',
+                style: TextStyle(color: Colors.grey),
+              ),
             ),
             TextButton(
               onPressed: () async {
@@ -691,9 +704,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: GridView.count(
-          crossAxisCount: 2, 
-          crossAxisSpacing: 14.0, 
-          mainAxisSpacing: 14.0, 
+          crossAxisCount: 2,
+          crossAxisSpacing: 14.0,
+          mainAxisSpacing: 14.0,
           children: <Widget>[
             _buildButtonBudget(context, Icons.account_balance, 'Mes Budgets',
                 onTap: () => _showBudgetsDialog(context)),
@@ -701,8 +714,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onTap: () => _showUserInfoDialog(context)),
             buildBackButtonExpense(
                 context, Icons.trending_down, 'Mes dépenses'),
-            _buildButton(context, Icons.history, 'Historique'),
-            _buildButton(context, Icons.help_outline, 'A propos de nous'),
+            _buildButton(context, Icons.book, 'Rapports'),
+            _buildButton(context, Icons.help, 'A propos de nous'),
             buildBackButton(context, Icons.arrow_back,
                 'Aller à l\'accuiel'), // Ajout du bouton Déconnexion
           ],
@@ -718,7 +731,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       MaterialPageRoute(builder: (context) => WelcomeScreen()),
     );
   }
-
 
   Widget buildBackButton(BuildContext context, IconData icon, String label) {
     return ElevatedButton(
@@ -761,16 +773,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // Naviguer vers la page de dépenses
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(
-                builder: (context) =>
-                    AddExpense()),
+            MaterialPageRoute(builder: (context) => AddExpense()),
           );
         },
         style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.all(20.0),
-          backgroundColor: Colors.blueAccent[200], 
+          backgroundColor: Colors.blueAccent[200],
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8), 
+            borderRadius: BorderRadius.circular(8),
           ),
         ),
         child: Column(
@@ -778,8 +788,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: <Widget>[
             Icon(
               icon,
-              size: 40.0, 
-              color: Colors.white, 
+              size: 40.0,
+              color: Colors.white,
             ),
             const SizedBox(height: 8),
             Text(
@@ -813,10 +823,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 TextButton(
                   onPressed: () {
                     // Si l'utilisateur annule
-                    Navigator.of(context).pop(); 
+                    Navigator.of(context).pop();
                   },
                   style: TextButton.styleFrom(
-                    shape: const StadiumBorder(), 
+                    shape: const StadiumBorder(),
                   ),
                   child: Text(
                     "Annuler",
@@ -828,11 +838,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 TextButton(
                   onPressed: () {
-                    FirebaseAuth.instance.signOut(); 
-                    Navigator.of(context).pop(); 
+                    FirebaseAuth.instance.signOut();
+                    Navigator.of(context).pop();
                   },
                   style: TextButton.styleFrom(
-                    shape: const StadiumBorder(), 
+                    shape: const StadiumBorder(),
                   ),
                   child: Text(
                     "Déconnexion",
@@ -849,19 +859,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
       },
       style: ElevatedButton.styleFrom(
         padding: const EdgeInsets.all(20.0),
-        backgroundColor:
-            Colors.blueAccent[200], 
+        backgroundColor: Colors.blueAccent[200],
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8), 
-        ), 
+          borderRadius: BorderRadius.circular(8),
+        ),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
           Icon(
             icon,
-            size: 40.0, 
-            color: Colors.white, 
+            size: 40.0,
+            color: Colors.white,
           ),
           const SizedBox(height: 8),
           Text(

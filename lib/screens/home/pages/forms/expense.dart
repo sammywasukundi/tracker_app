@@ -1,6 +1,9 @@
 // ignore_for_file: prefer_const_constructors
 
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:budget_app/model/budged.dart';
+import 'package:budget_app/model/categorie.dart';
+import 'package:budget_app/model/depense.dart';
+import 'package:budget_app/services/firebase/firebase_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 //import 'package:tracker_app/screens/home/home_page.dart';
@@ -17,23 +20,21 @@ class _AddExpenseState extends State<AddExpense> {
   String? categoryName;
   DateTime? selectedDate;
 
-  final GlobalKey<FormState> _formKey =
-      GlobalKey<FormState>(); 
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   final TextEditingController _montantDepenseController =
-      TextEditingController(); 
+      TextEditingController();
   final TextEditingController _descriptionDepenseController =
-      TextEditingController(); 
+      TextEditingController();
 
-  String? selectedCategory; 
+  String? selectedCategory;
 
-  late String
-      budgetId; 
+  //late String budgetId;
 
-  List<Map<String, dynamic>> expenseList = [];
+  List<DepenseModel> expenseList = [];
   int expenseCount = 0;
 
-  String? userId; 
+  String? userId;
 
   @override
   void initState() {
@@ -41,67 +42,30 @@ class _AddExpenseState extends State<AddExpense> {
     _loadExpenses();
   }
 
+  Future<List<DepenseModel>> fetchExpenses() async {
+    var snapshot = await DepenseModel.getList;
 
-Future<List<Map<String, dynamic>>> fetchExpenses(String userId) async {
-  print("Fetching expenses for userId: $userId");
+    if (snapshot.isEmpty) {
+      print("Aucune dépense trouvée pour cet utilisateur.");
+    } else {
+      print("Dépenses trouvées: ${snapshot.length}");
+    }
 
-  QuerySnapshot<Map<String, dynamic>> snapshot = await FirebaseFirestore
-      .instance
-      .collection('depense')
-      .where('userId', isEqualTo: userId)
-      .get();
+    List<DepenseModel> expenseList = snapshot;
 
-  if (snapshot.docs.isEmpty) {
-    print("Aucune dépense trouvée pour cet utilisateur.");
-  } else {
-    print("Dépenses trouvées: ${snapshot.docs.length}");
+    // Mettez à jour le nombre de dépenses après avoir construit la liste
+    expenseCount = expenseList.length;
+    print(
+        "Total des dépenses trouvées: $expenseCount"); // Affichez le nombre total
+
+    return expenseList; // Retournez la liste des dépenses
   }
 
-  List<Map<String, dynamic>> expenseList = snapshot.docs.map((doc) {
-    final expenseData = {
-      'id': doc.id,
-      'categoryName': doc['categoryName'] ?? 'Sans nom',
-      'montant': doc['montant'] ?? 0,
-      'dateDepense': (doc['dateDepense'] as Timestamp).toDate(),
-    };
-    print("Dépense trouvée: $expenseData"); // Ajoutez cette ligne pour déboguer
-    return expenseData;
-  }).toList();
+  String? selectedBudgetId;
 
-  // Mettez à jour le nombre de dépenses après avoir construit la liste
-  expenseCount = expenseList.length;
-  print("Total des dépenses trouvées: $expenseCount"); // Affichez le nombre total
-
-  return expenseList; // Retournez la liste des dépenses
-}
-
-
-  String?
-      selectedBudgetId; 
-
-  Future<void> addExpense(
-      String categoryId,
-      String categoryName,
-      String montant,
-      String description,
-      DateTime dateDepense,
-      String userId,
-      String budgetId) async {
+  Future<void> addExpense(DepenseModel depense) async {
     try {
-      CollectionReference expensesRef =
-          FirebaseFirestore.instance.collection('depense');
-
-      await expensesRef.add({
-        'userId': userId, 
-        'categoryId': categoryId, 
-        'categoryName':
-            categoryName, 
-        'montant': double.parse(montant), 
-        'description': description, 
-        'dateDepense': dateDepense, 
-        'budgetId': budgetId, 
-        'createdAt': FieldValue.serverTimestamp(), 
-      });
+      await depense.add();
 
       print("Dépense ajoutée avec succès !");
     } catch (e) {
@@ -111,12 +75,11 @@ Future<List<Map<String, dynamic>>> fetchExpenses(String userId) async {
     await _loadExpenses();
   }
 
-  Future<void> deleteExpense(String expenseId) async {
+  Future<void> deleteExpense(DepenseModel depense) async {
     try {
-      DocumentReference expenseRef =
-          FirebaseFirestore.instance.collection('depense').doc(expenseId);
-
-      await expenseRef.delete();
+      await depense.delete();
+      expenseList = await DepenseModel.getList;
+      if (mounted) setState(() {});
 
       print("Dépense supprimée avec succès !");
     } catch (e) {
@@ -124,19 +87,11 @@ Future<List<Map<String, dynamic>>> fetchExpenses(String userId) async {
     }
   }
 
-  void _showUpdateExpenseDialog(
-      BuildContext context,
-      String expenseId,
-      String currentCategoryId,
-      String currentCategoryName,
-      double currentMontant,
-      String currentDescription,
-      DateTime currentDate,
-      String currentBudgetId) {
+  void _showUpdateExpenseDialog(BuildContext context, DepenseModel depense) {
     TextEditingController montantController =
-        TextEditingController(text: currentMontant.toString());
+        TextEditingController(text: depense.montant.toString());
     TextEditingController descriptionController =
-        TextEditingController(text: currentDescription);
+        TextEditingController(text: depense.description);
 
     showDialog(
       context: context,
@@ -168,15 +123,9 @@ Future<List<Map<String, dynamic>>> fetchExpenses(String userId) async {
             TextButton(
               onPressed: () async {
                 // Appel de la fonction de mise à jour
-                await updateExpense(
-                  expenseId,
-                  currentCategoryId,
-                  currentCategoryName,
-                  montantController.text,
-                  descriptionController.text,
-                  currentDate, // Ou un nouveau date sélectionnée si nécessaire
-                  currentBudgetId,
-                );
+                await updateExpense(depense
+                  ..montant = double.parse(montantController.text)
+                  ..description = descriptionController.text);
                 Navigator.of(context).pop(); // Fermer la boîte de dialogue
               },
               child: Text('Mettre à jour'),
@@ -187,29 +136,11 @@ Future<List<Map<String, dynamic>>> fetchExpenses(String userId) async {
     );
   }
 
-  Future<void> updateExpense(
-      String expenseId,
-      String categoryId,
-      String categoryName,
-      String montant,
-      String description,
-      DateTime dateDepense,
-      String budgetId) async {
+  Future<void> updateExpense(DepenseModel expense) async {
     try {
-      DocumentReference expenseRef =
-          FirebaseFirestore.instance.collection('depense').doc(expenseId);
-
-      await expenseRef.update({
-        'categoryId': categoryId,
-        'categoryName': categoryName,
-        'montant': double.parse(montant),
-        'description': description,
-        'dateDepense': dateDepense,
-        'budgetId': budgetId,
-        'updatedAt': FieldValue
-            .serverTimestamp(), 
-      });
-
+      await expense.add();
+      expenseList = await DepenseModel.getList;
+      if (mounted) setState(() {});
       print("Dépense mise à jour avec succès !");
     } catch (e) {
       print("Erreur lors de la mise à jour de la dépense : $e");
@@ -218,15 +149,10 @@ Future<List<Map<String, dynamic>>> fetchExpenses(String userId) async {
 
   Future<void> _loadExpenses() async {
     try {
-      final QuerySnapshot snapshot = await FirebaseFirestore.instance
-          .collection('depense')
-          .where('userId', isEqualTo: userId)
-          .get();
+      final snapshot = await DepenseModel.getList;
 
       setState(() {
-        expenseList = snapshot.docs
-            .map((doc) => doc.data() as Map<String, dynamic>)
-            .toList();
+        expenseList = snapshot;
       });
     } catch (e) {
       print("Erreur lors du chargement des dépenses : $e");
@@ -234,45 +160,16 @@ Future<List<Map<String, dynamic>>> fetchExpenses(String userId) async {
   }
 
   // Fonction pour récupérer l'ID du budget et les catégories liées
-  Future<List<Map<String, dynamic>>> fetchAllCategories() async {
+  Future<List<CategorieModel>> fetchAllCategories() async {
     try {
-      // Récupérer l'utilisateur actuellement connecté
-      User? currentUser = FirebaseAuth.instance.currentUser;
-
-      // Référence à la collection des catégories
-      CollectionReference<Map<String, dynamic>> categoriesRef =
-          FirebaseFirestore.instance.collection('categorie');
-
-      QuerySnapshot<Map<String, dynamic>> categoriesSnapshot;
-
-      if (currentUser != null) {
-        // Si l'utilisateur est connecté, récupérer uniquement les catégories liées à son ID
-        categoriesSnapshot = await categoriesRef
-            .where('userId', isEqualTo: currentUser.uid)
-            .get();
-      } else {
-        // Si aucun utilisateur n'est connecté, récupérer toutes les catégories
-        categoriesSnapshot = await categoriesRef.get();
-      }
-
-      // Convertir les catégories en liste de Map
-      List<Map<String, dynamic>> categories =
-          categoriesSnapshot.docs.map((doc) {
-        return {
-          'id': doc.id,
-          'nom': doc['nom'] ?? 'Sans nom', // Nom avec valeur par défaut si null
-          'description': doc['description'] ?? '', // Description facultative
-        };
-      }).toList();
-
-      return categories; // Retourner la liste des catégories
+      return await CategorieModel.getList; // Retourner la liste des catégories
     } catch (e) {
       print("Erreur lors de la récupération des catégories : $e");
       throw Exception("Erreur de récupération des catégories");
     }
   }
 
-  List<QueryDocumentSnapshot<Map<String, dynamic>>> budgets = [];
+  List<BudgetModel> budgets = [];
 
   Future<void> fetchBudgets() async {
     User? currentUser = FirebaseAuth.instance.currentUser;
@@ -283,15 +180,11 @@ Future<List<Map<String, dynamic>>> fetchExpenses(String userId) async {
     }
 
     try {
-      QuerySnapshot<Map<String, dynamic>> snapshot = await FirebaseFirestore
-          .instance
-          .collection('budget')
-          .where('userId', isEqualTo: currentUser.uid)
-          .get();
+      final snapshot = await BudgetModel.getList;
 
       // Stocker les budgets dans la liste
       setState(() {
-        budgets = snapshot.docs;
+        budgets = snapshot;
       });
     } catch (e) {
       print('Erreur lors de la récupération des budgets : $e');
@@ -313,7 +206,7 @@ Future<List<Map<String, dynamic>>> fetchExpenses(String userId) async {
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   // Sélection de la catégorie
-                  FutureBuilder<List<Map<String, dynamic>>>(
+                  FutureBuilder<List<CategorieModel>>(
                     future: fetchAllCategories(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
@@ -328,8 +221,7 @@ Future<List<Map<String, dynamic>>> fetchExpenses(String userId) async {
                         return Text('Aucune catégorie disponible');
                       }
 
-                      final List<Map<String, dynamic>> categories =
-                          snapshot.data!;
+                      final List<CategorieModel> categories = snapshot.data!;
 
                       return DropdownButtonFormField<String>(
                         decoration: InputDecoration(
@@ -338,15 +230,16 @@ Future<List<Map<String, dynamic>>> fetchExpenses(String userId) async {
                         ),
                         items: categories.map((category) {
                           return DropdownMenuItem<String>(
-                            value: category['id'], // ID de la catégorie
-                            child: Text(category['nom']), // Nom de la catégorie
+                            value: category.id, // ID de la catégorie
+                            child: Text(category.nom), // Nom de la catégorie
                           );
                         }).toList(),
                         onChanged: (value) {
                           setState(() {
                             categoryId = value;
                             categoryName = categories
-                                .firstWhere((cat) => cat['id'] == value)['nom'];
+                                .firstWhere((cat) => cat.id == value)
+                                .nom;
                           });
                         },
                         validator: (val) => val == null
@@ -377,10 +270,17 @@ Future<List<Map<String, dynamic>>> fetchExpenses(String userId) async {
                           border: OutlineInputBorder(),
                         ),
                         items: budgets.map((budgetDoc) {
-                          Map<String, dynamic> budgetData = budgetDoc.data();
                           return DropdownMenuItem<String>(
                             value: budgetDoc.id,
-                            child: Text(budgetData['nomBudget']),
+                            child: FittedBox(
+                              fit: BoxFit
+                                  .scaleDown, // Réduire le texte si nécessaire
+                              child: Text(
+                                budgetDoc.nomBudget,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                           );
                         }).toList(),
                         onChanged: (value) {
@@ -533,14 +433,17 @@ Future<List<Map<String, dynamic>>> fetchExpenses(String userId) async {
                         categoryId != null &&
                         selectedBudgetId != null) {
                       // Appel de la fonction pour ajouter la dépense
+                      final expense = DepenseModel.avecParametre(
+                          id: generateID(),
+                          budgetId: selectedBudgetId!,
+                          categorieId: categoryId!,
+                          categoryName: categoryName!,
+                          dateDepense: date,
+                          description: description,
+                          montant: double.parse(montant),
+                          userId: userId);
                       await addExpense(
-                          categoryId!,
-                          nom,
-                          montant,
-                          description,
-                          date,
-                          userId,
-                          selectedBudgetId!); // Inclure l'ID du budget sélectionné
+                          expense); // Inclure l'ID du budget sélectionné
 
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -582,17 +485,13 @@ Future<List<Map<String, dynamic>>> fetchExpenses(String userId) async {
   void _sortExpenses(String criterion) {
     setState(() {
       if (criterion == 'alphabetical') {
-        expenseList.sort((a, b) =>
-            (a['categoryName'] ?? '').compareTo(b['categoryName'] ?? ''));
+        expenseList.sort((a, b) => (a.categoryName).compareTo(b.categoryName));
       } else if (criterion == 'montant_asc') {
-        expenseList
-            .sort((a, b) => (a['montant'] ?? 0).compareTo(b['montant'] ?? 0));
+        expenseList.sort((a, b) => (a.montant).compareTo(b.montant));
       } else if (criterion == 'montant_desc') {
-        expenseList
-            .sort((a, b) => (b['montant'] ?? 0).compareTo(a['montant'] ?? 0));
+        expenseList.sort((a, b) => (b.montant).compareTo(a.montant));
       } else if (criterion == 'date') {
-        expenseList.sort((a, b) => (b['dateDepense'] as DateTime)
-            .compareTo(a['dateDepense'] as DateTime));
+        expenseList.sort((a, b) => (b.dateDepense).compareTo(a.dateDepense));
       }
     });
   }
@@ -626,7 +525,7 @@ Future<List<Map<String, dynamic>>> fetchExpenses(String userId) async {
                           height: 5,
                         ),
                         Text(
-                          '$expenseCount dépenses ajoutées',
+                          '${expenseList.length} dépenses ajoutées',
                           style: TextStyle(
                             fontSize: 12.0,
                             fontWeight: FontWeight.w400,
@@ -650,7 +549,7 @@ Future<List<Map<String, dynamic>>> fetchExpenses(String userId) async {
                         ),
                         PopupMenuButton<String>(
                           onSelected: (value) {
-                            _sortExpenses(value); 
+                            _sortExpenses(value);
                           },
                           itemBuilder: (BuildContext context) => [
                             PopupMenuItem(
@@ -684,17 +583,10 @@ Future<List<Map<String, dynamic>>> fetchExpenses(String userId) async {
                   itemCount: expenseList.length,
                   itemBuilder: (context, int index) {
                     final expense = expenseList[index];
-                    String? expenseId = expense['id'];
-                    print(
-                        "Dépense à l'index $index: $expense"); 
+                    String? expenseId = expense.id;
+                    print("Dépense à l'index $index: $expense");
 
-                    if (expense['id'] == null) {
-                      print("Erreur: ID de dépense est null à l'index $index");
-                    }
-
-                    final date =
-                        (expense['dateDepense'] as Timestamp?)?.toDate() ??
-                            DateTime.now();
+                    final date = (expense.dateDepense);
                     final formattedDate =
                         "${date.day}/${date.month}/${date.year}";
 
@@ -707,11 +599,11 @@ Future<List<Map<String, dynamic>>> fetchExpenses(String userId) async {
                         ),
                         child: ListTile(
                           title: Text(
-                            expense['categoryName'] ?? 'Sans catégorie',
+                            expense.categoryName,
                             style: TextStyle(fontWeight: FontWeight.w500),
                           ),
                           subtitle: Text(
-                            "Montant: \$ ${expense['montant'].toStringAsFixed(2)}",
+                            "Montant: \$ ${expense.montant.toStringAsFixed(2)}",
                           ),
                           leading: Text(formattedDate),
                           trailing: Row(
@@ -721,52 +613,17 @@ Future<List<Map<String, dynamic>>> fetchExpenses(String userId) async {
                                 icon:
                                     Icon(Icons.remove, color: Colors.redAccent),
                                 onPressed: () async {
-                                  if (expense['id'] != null) {
-                                    await deleteExpense(expense['id']);
-                                    setState(
-                                        () {}); // Actualiser la liste après suppression
-                                  } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                          content:
-                                              Text('ID de dépense manquant.')),
-                                    );
-                                  }
+                                  await deleteExpense(expense);
+                                  setState(
+                                      () {}); // Actualiser la liste après suppression
                                 },
                               ),
                               IconButton(
                                 icon: Icon(Icons.edit,
                                     color: Colors.orangeAccent),
                                 onPressed: () {
-                                  if (expenseId != null) {
-                                    // Vérifiez si expenseId n'est pas null
-                                    String currentCategoryId =
-                                        expense['categoryId'];
-                                    String currentCategoryName =
-                                        expense['categoryName'];
-                                    String currentMontant =
-                                        expense['montant'].toString();
-                                    String currentDescription =
-                                        expense['description'];
-                                    DateTime currentDate =
-                                        expense['dateDepense'];
-                                    String currentBudgetId =
-                                        expense['budgetId'];
-
-                                    // Appeler la fonction de mise à jour
-                                    updateExpense(
-                                      expenseId, 
-                                      currentCategoryId,
-                                      currentCategoryName,
-                                      currentMontant,
-                                      currentDescription,
-                                      currentDate,
-                                      currentBudgetId,
-                                    );
-                                  } else {
-                                    print(
-                                        "L'ID de la dépense est nul."); 
-                                  }
+                                  // Appeler la fonction de mise à jour
+                                  _showUpdateExpenseDialog(context, expense);
                                 },
                               ),
                             ],

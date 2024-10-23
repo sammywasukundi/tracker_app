@@ -4,7 +4,7 @@ import 'package:budget_app/model/budged.dart';
 import 'package:budget_app/screens/home/home_page.dart';
 import 'package:budget_app/screens/home/pages/forms/revenu.dart';
 import 'package:budget_app/services/dialog.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:budget_app/services/firebase/firebase_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -39,30 +39,14 @@ class _FormBudgetState extends State<FormBudget> {
     setState(() {});
   }
 
-  Future<void> add(
-      String userId,
-      DateTime dateDebut,
-      DateTime dateFin,
-      double montant,
-      String nomBudget,
-      String descriptionBudget,
-      List<String> revenusIds,
-      List<String> categoriesIds,
-      List<String> expensesIds) async {
-        await EasyLoading.show(status : 'Patientez...');
-    final budget = BudgetModel.avecParametre(
-        id: userId,
-        dateDebut: dateDebut,
-        dateFin: dateFin,
-        montant: montant,
-        nomBudget: nomBudget,
-        descriptionBudget: descriptionBudget,
-        revenusIds: revenusIds,
-        categories: categoriesIds,
-        depense: expensesIds);
+  Future<void> add(BudgetModel budget) async {
+    await EasyLoading.show(status: 'Patientez...');
+
     final result = await budget.add();
+    budgets = await BudgetModel.getList;
+    if (mounted) setState(() {});
     if (result) {
-    EasyLoading.dismiss();
+      EasyLoading.dismiss();
       showSuccess(
           context, 'Reussis !', 'Votre buget a été enregistrée avec succèss !');
     } else {
@@ -354,24 +338,24 @@ class _FormBudgetState extends State<FormBudget> {
                               ];
 
                               // Ajouter le budget dans Firestore avec le userId
-                              await add(
-                                  userId, // Passer le userId ici
-                                  _dateDebut!,
-                                  _dateFin!,
-                                  double.parse(_montant.text),
-                                  _nomBudget.text,
-                                  _descriptionBudget.text,
-                                  revenusIds,
-                                  categoriesIds,
-                                  expensesIds).then((e){
-                                    Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => CategoryScreen(),
-                                ),
-                              );
-
-                                  });
+                              final budget = BudgetModel.avecParametre(
+                                  id: generateID(),
+                                  dateDebut: _dateDebut!,
+                                  dateFin: _dateFin!,
+                                  montant: double.parse(_montant.text),
+                                  nomBudget: _nomBudget.text,
+                                  descriptionBudget: _descriptionBudget.text,
+                                  revenusIds: revenusIds,
+                                  categories: categoriesIds,
+                                  depense: expensesIds);
+                              await add(budget).then((e) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => CategoryScreen(),
+                                  ),
+                                );
+                              });
 
                               // Afficher un message de validation
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -387,7 +371,6 @@ class _FormBudgetState extends State<FormBudget> {
                               _descriptionBudget.clear();
 
                               // Naviguer vers la page des catégories
-                              
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
@@ -541,10 +524,8 @@ class _FormBudgetState extends State<FormBudget> {
                                 itemBuilder: (context, index) {
                                   final budget = budgets[index];
 
-                                  final DateTime dateDebut = (budget
-                                      .dateDebut); 
-                                  final DateTime? dateFin = (budget
-                                      .dateFin); 
+                                  final DateTime dateDebut = (budget.dateDebut);
+                                  final DateTime dateFin = (budget.dateFin);
 
                                   final String formattedDateDebut =
                                       "${dateDebut.day}/${dateDebut.month}/${dateDebut.year}";

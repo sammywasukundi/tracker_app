@@ -1,7 +1,8 @@
 // ignore_for_file: prefer_const_constructors
 
+import 'package:budget_app/model/categorie.dart';
 import 'package:budget_app/screens/home/home_page.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:budget_app/services/firebase/firebase_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -17,51 +18,32 @@ class _AddCategorieState extends State<AddCategorie> {
   final _nomCat = TextEditingController();
   final _descriptionCat = TextEditingController();
 
-  List<Map<String, dynamic>> categoryList = [];
+  List<CategorieModel> categoryList = [];
   int categoryCount = 0;
 
+  // Future<String> getUserBudgetId(String userId) async {
+  //   // Récupérer le budget de l'utilisateur à partir de Firestore
+  //   QuerySnapshot snapshot = await FirebaseFirestore.instance
+  //       .collection('budget')
+  //       .where('userId', isEqualTo: userId)
+  //       .get();
 
-  Future<String> getUserBudgetId(String userId) async {
-    // Récupérer le budget de l'utilisateur à partir de Firestore
-    QuerySnapshot snapshot = await FirebaseFirestore.instance
-        .collection('budget')
-        .where('userId', isEqualTo: userId)
-        .get();
+  //       CategorieModel().
 
-    if (snapshot.docs.isNotEmpty) {
-      return snapshot.docs.first.id;
-    }
-    return ''; 
-  }
+  //   if (snapshot.docs.isNotEmpty) {
+  //     return snapshot.docs.first.id;
+  //   }
+  //   return '';
+  // }
 
-  Future<void> addCat(String nom, String description, String budgetId) async {
+  Future<void> addCat(CategorieModel categorie) async {
     try {
-      User? currentUser = FirebaseAuth.instance.currentUser;
-
-      if (currentUser == null) {
-        print("Aucun utilisateur connecté.");
-        return;
-      }
-
-      String userId = currentUser.uid;
-
-      DocumentReference docRef =
-          await FirebaseFirestore.instance.collection('categorie').add({
-        'nom': nom,
-        'description': description,
-        'userId': userId, 
-        'budgetId': budgetId, 
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      await categorie.add();
+      final list = await CategorieModel.getList;
 
       setState(() {
-        categoryList.add({
-          'id': docRef.id,
-          'nom': nom,
-          'description': description,
-          'budgetId': budgetId, 
-        });
-        categoryCount = categoryList.length; 
+        categoryList = list;
+        categoryCount = categoryList.length;
       });
     } catch (e) {
       print("Erreur lors de l'ajout de la catégorie : $e");
@@ -69,70 +51,70 @@ class _AddCategorieState extends State<AddCategorie> {
   }
 
 // Supprimer la category de la collection
-  Future<void> deleteCat(String categoryId) async {
-    await FirebaseFirestore.instance
-        .collection('categorie')
-        .doc(categoryId)
-        .delete();
+  Future<void> deleteCat(CategorieModel categorie) async {
+    await categorie.delete();
+    final list = await CategorieModel.getList;
 
     setState(() {
-      categoryList.removeWhere((category) => category['id'] == categoryId);
+      categoryList = list;
       categoryCount = categoryList.length; // Mettre à jour le nombre
     });
   }
 
   //update la category
-  Future<void> updateCat(String categoryId, String newNom,
-      String newDescription, String? newBudgetId) async {
-    try {
-      DocumentSnapshot docSnapshot = await FirebaseFirestore.instance
-          .collection('categorie')
-          .doc(categoryId)
-          .get();
+  // Future<void> updateCat(String categoryId, String newNom,
+  //     String newDescription, String? newBudgetId) async {
+  //   try {
+  //     DocumentSnapshot docSnapshot = await FirebaseFirestore.instance
+  //         .collection('categorie')
+  //         .doc(categoryId)
+  //         .get();
 
-      if (docSnapshot.exists) {
-        await FirebaseFirestore.instance
-            .collection('categorie')
-            .doc(categoryId)
-            .update({
-          'nom': newNom,
-          'description': newDescription,
-          if (newBudgetId != null)
-            'budgetId': newBudgetId, 
-        });
+  //     if (docSnapshot.exists) {
+  //       await FirebaseFirestore.instance
+  //           .collection('categorie')
+  //           .doc(categoryId)
+  //           .update({
+  //         'nom': newNom,
+  //         'description': newDescription,
+  //         if (newBudgetId != null)
+  //           'budgetId': newBudgetId,
+  //       });
 
-        setState(() {
-          int index = categoryList
-              .indexWhere((category) => category['id'] == categoryId);
-          if (index != -1) {
-            categoryList[index]['nom'] = newNom;
-            categoryList[index]['description'] = newDescription;
-            if (newBudgetId != null) {
-              categoryList[index]['budgetId'] =
-                  newBudgetId; 
-            }
-          }
-        });
-      } else {
-        throw FirebaseException(
-            plugin: 'cloud_firestore',
-            message: 'Le document avec ID $categoryId n\'existe pas.',
-            code: 'not-found');
-      }
-    } catch (e) {
-      print('Erreur lors de la mise à jour de la catégorie : $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur : $e')),
-      );
-    }
-  }
+  //       setState(() {
+  //         int index = categoryList
+  //             .indexWhere((category) => category['id'] == categoryId);
+  //         if (index != -1) {
+  //           categoryList[index]['nom'] = newNom;
+  //           categoryList[index]['description'] = newDescription;
+  //           if (newBudgetId != null) {
+  //             categoryList[index]['budgetId'] =
+  //                 newBudgetId;
+  //           }
+  //         }
+  //       });
+  //     } else {
+  //       throw FirebaseException(
+  //           plugin: 'cloud_firestore',
+  //           message: 'Le document avec ID $categoryId n\'existe pas.',
+  //           code: 'not-found');
+  //     }
+  //   } catch (e) {
+  //     print('Erreur lors de la mise à jour de la catégorie : $e');
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       SnackBar(content: Text('Erreur : $e')),
+  //     );
+  //   }
+  // }
+
+  User? user = FirebaseAuth.instance.currentUser;
 
   //formulaire pour update un revenu
-  void _showUpdateFormDialog(
-      BuildContext context, String categoryId, String nom, String description) {
-    TextEditingController nomController = TextEditingController(text: nom);
+  void _showUpdateFormDialog(BuildContext context, CategorieModel categorie) {
+    TextEditingController nomController =
+        TextEditingController(text: categorie.nom);
     TextEditingController descriptionController =
-        TextEditingController(text: description);
+        TextEditingController(text: categorie.description);
 
     showDialog(
       context: context,
@@ -209,8 +191,9 @@ class _AddCategorieState extends State<AddCategorie> {
                 )),
             TextButton(
               onPressed: () async {
-                await updateCat(categoryId, nomController.text,
-                    descriptionController.text, null);
+                await addCat(categorie
+                  ..nom = nomController.text
+                  ..description = descriptionController.text);
 
                 Navigator.of(context).pop();
 
@@ -338,12 +321,15 @@ class _AddCategorieState extends State<AddCategorie> {
                   User? user = FirebaseAuth.instance.currentUser;
                   String userId = user!.uid;
 
-                  String budgetId = await getUserBudgetId(
-                      userId); 
+                  // String budgetId = await getUserBudgetId(userId);
+                  final categorie = CategorieModel.avecParametre(
+                      id: generateID(),
+                      description: description,
+                      userId: userId,
+                      nom: nom);
 
-                  if (userId.isNotEmpty && budgetId.isNotEmpty) {
-                    await addCat(nom, description, budgetId);
-
+                  if (userId.isNotEmpty) {
+                    await addCat(categorie);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                           content: Text('Catégorie ajoutée avec succès !')),
@@ -380,48 +366,17 @@ class _AddCategorieState extends State<AddCategorie> {
     );
   }
 
-  Future<void> addCategoryToFirestore(String nom, String description) async {
-    try {
-      User? currentUser = FirebaseAuth.instance.currentUser;
+  Future<void> addCategoryToFirestore(CategorieModel categorie) async =>
+      addCat(categorie);
 
-      if (currentUser == null) {
-        print('Aucun utilisateur connecté');
-        return;
-      }
-
-      await FirebaseFirestore.instance.collection('categorie').add({
-        'nom': nom,
-        'description': description,
-        'userId':
-            currentUser.uid, 
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      print(
-          'Catégorie ajoutée avec succès pour l\'utilisateur : ${currentUser.uid}');
-    } catch (e) {
-      print('Erreur lors de l\'ajout de la catégorie : $e');
-    }
-  }
-
-  int categoryCountInterne = 0; 
+  int categoryCountInterne = 0;
 
   Future<void> fetchCategories() async {
     try {
-      QuerySnapshot snapshot = await FirebaseFirestore.instance
-          .collection('categorie')
-          .orderBy('createdAt', descending: true)
-          .get();
+      var snapshot = await CategorieModel.getList;
 
       setState(() {
-        categoryList = snapshot.docs.map((doc) {
-          return {
-            'id': doc.id,
-            'nom': doc['nom'],
-            'description': doc['description'],
-          };
-        }).toList();
-
+        categoryList = snapshot;
         categoryCountInterne = categoryList.length;
       });
     } catch (e) {
@@ -517,7 +472,7 @@ class _AddCategorieState extends State<AddCategorie> {
               ),
               // Première ListView
               SizedBox(
-                height: 200,
+                height: 320,
                 child: ListView.builder(
                   shrinkWrap: true,
                   itemCount: staticCategories.length,
@@ -525,8 +480,8 @@ class _AddCategorieState extends State<AddCategorie> {
                     var category = staticCategories[index];
 
                     // Vérifier si la catégorie est déjà ajoutée
-                    bool isCategoryAdded = categoryList
-                        .any((cat) => cat['nom'] == category['nom']);
+                    bool isCategoryAdded =
+                        categoryList.any((cat) => cat.nom == category['nom']);
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8.0),
@@ -574,10 +529,14 @@ class _AddCategorieState extends State<AddCategorie> {
                                           Icon(Icons.add, color: Colors.green),
                                       onPressed: () async {
                                         // Ajouter la catégorie
-                                        await addCategoryToFirestore(
-                                          category['nom'],
-                                          category['description'],
-                                        );
+                                        final cate =
+                                            CategorieModel.avecParametre(
+                                                id: generateID(),
+                                                description:
+                                                    category['description'],
+                                                userId: user?.uid ?? '',
+                                                nom: category['nom']);
+                                        await addCategoryToFirestore(cate);
                                         // Mettre à jour l'état
                                         await fetchCategories();
                                       },
@@ -591,10 +550,8 @@ class _AddCategorieState extends State<AddCategorie> {
                                           onPressed: () async {
                                             var addedCategory =
                                                 categoryList.firstWhere((cat) =>
-                                                    cat['nom'] ==
-                                                    category['nom']);
-                                            await deleteCat(
-                                                addedCategory['id']);
+                                                    cat.nom == category['nom']);
+                                            await deleteCat(addedCategory);
                                             await fetchCategories();
                                           },
                                         ),
@@ -605,13 +562,10 @@ class _AddCategorieState extends State<AddCategorie> {
                                           onPressed: () {
                                             var addedCategory =
                                                 categoryList.firstWhere((cat) =>
-                                                    cat['nom'] ==
-                                                    category['nom']);
+                                                    cat.nom == category['nom']);
                                             _showUpdateFormDialog(
                                               context,
-                                              addedCategory['id'],
-                                              addedCategory['nom'],
-                                              addedCategory['description'],
+                                              addedCategory,
                                             );
                                           },
                                         ),

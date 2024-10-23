@@ -2,6 +2,7 @@
 
 import 'dart:io';
 
+import 'package:budget_app/model/user.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -190,15 +191,24 @@ class _RegisterPageState extends State<RegisterPage> {
       }
 
       // Tenter d'ajouter les détails de l'utilisateur à Firestore
-      await FirebaseFirestore.instance.collection('users').doc(uid).set({
-        'userId': uid,
-        'first name': firstName,
-        'last name': lastName,
-        'email': email,
-        'password': password,
-        'profile': imageUrl ?? '',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      final user = UserModel.avecParametre(
+          id: uid,
+          email: email,
+          password: password,
+          profile: imageUrl ?? '',
+          fName: firstName,
+          lName: lastName,
+          createAt: DateTime.now());
+      await user.add();
+      // await FirebaseFirestore.instance.collection('users').doc(uid).set({
+      //   'userId': uid,
+      //   'first name': firstName,
+      //   'last name': lastName,
+      //   'email': email,
+      //   'password': password,
+      //   'profile': imageUrl ?? '',
+      //   'createdAt': FieldValue.serverTimestamp().,
+      // });
 
       print('Utilisateur ajouté avec succès avec UID.');
     } catch (e) {
