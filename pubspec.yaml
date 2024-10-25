@@ -56,6 +56,7 @@ dependencies:
   awesome_dialog: ^3.2.1
   #package pour imprimer ou generer les etat de sortie
   printing: ^5.13.3
+  pdf: ^3.11.1
   #affichage des  loading
   flutter_easyloading: ^3.0.5
 

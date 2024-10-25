@@ -5,6 +5,7 @@ import 'package:budget_app/screens/home/home_page.dart';
 import 'package:budget_app/screens/home/pages/forms/revenu.dart';
 import 'package:budget_app/services/dialog.dart';
 import 'package:budget_app/services/firebase/firebase_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -48,68 +49,11 @@ class _FormBudgetState extends State<FormBudget> {
     if (result) {
       EasyLoading.dismiss();
       showSuccess(
-          context, 'Reussis !', 'Votre buget a été enregistrée avec succèss !');
+          context, 'Reussis !', 'Votre budget a été enregistré avec succèss !');
     } else {
       showInfo(context, 'Info', 'Votre budget n\'a pas aboutit');
     }
   }
-
-  // Future<void> addBudgetWithUserReference(
-  //     String userId,
-  //     DateTime dateDebut,
-  //     DateTime dateFin,
-  //     int montant,
-  //     String nomBudget,
-  //     String descriptionBudget,
-  //     List<String> revenusIds,
-  //     List<String> categoriesIds,
-  //     List<String> expensesIds) async {
-  //   try {
-  //     // Check for overlapping budgets
-  //     QuerySnapshot existingBudgets = await FirebaseFirestore.instance
-  //         .collection('budget')
-  //         .where('userId', isEqualTo: userId)
-  //         .get();
-
-  //     bool hasOverlap = false;
-
-  //     // Check if any existing budget overlaps with the new budget's date range
-  //     for (var doc in existingBudgets.docs) {
-  //       DateTime existingStart = (doc['dateDebut'] as Timestamp).toDate();
-  //       DateTime existingEnd = (doc['dateFin'] as Timestamp).toDate();
-
-  //       if (!(dateFin.isBefore(existingStart) ||
-  //           dateDebut.isAfter(existingEnd))) {
-  //         hasOverlap = true;
-  //         break;
-  //       }
-  //     }
-
-  //     if (hasOverlap) {
-  //       print(
-  //           "Impossible d'ajouter le budget : la période se chevauche avec un autre budget existant.");
-  //       return;
-  //     }
-
-  //     // No overlap, proceed with adding the new budget
-  //     await FirebaseFirestore.instance.collection('budget').add({
-  //       'userId': userId,
-  //       'dateDebut': dateDebut,
-  //       'dateFin': dateFin,
-  //       'montant': montant,
-  //       'nomBudget': nomBudget,
-  //       'descriptionBudget': descriptionBudget,
-  //       'revenus': revenusIds,
-  //       'categories': categoriesIds,
-  //       'depenses': expensesIds,
-  //       'createdAt': FieldValue.serverTimestamp(),
-  //     });
-
-  //     print("Budget ajouté avec succès !");
-  //   } catch (e) {
-  //     print("Erreur lors de l'ajout du budget : $e");
-  //   }
-  // }
 
   // Méthode pour afficher le DatePicker et sélectionner la date
   Future<void> _selectDate(BuildContext context, DateTime? initialDate,
@@ -321,56 +265,79 @@ class _FormBudgetState extends State<FormBudget> {
                       onPressed: () async {
                         if (_formKey.currentState!.validate()) {
                           try {
-                            // Récupérer l'utilisateur connecté
                             User? user = FirebaseAuth.instance.currentUser;
 
                             if (user != null) {
-                              // Récupérer le userId (uid de l'utilisateur authentifié)
                               String userId = user.uid;
-                              List<String> revenusIds = [
-                                'Salaire',
-                              ];
-                              List<String> categoriesIds = [
-                                'Maison/habitat',
-                              ];
-                              List<String> expensesIds = [
-                                'depenseId1',
-                              ];
 
-                              // Ajouter le budget dans Firestore avec le userId
-                              final budget = BudgetModel.avecParametre(
+                              DateTime newStartDate = _dateDebut!;
+                              DateTime newEndDate = _dateFin!;
+
+                              // Vérifier les chevauchements avec les budgets existants pour cet utilisateur
+                              QuerySnapshot budget =
+                                  await FirebaseFirestore.instance
+                                      .collection(BudgetModel.collection)
+                                      .where('userId', isEqualTo: userId)
+                                      .get();
+
+                              bool hasOverlap = false;
+
+                              for (var doc in budget.docs) {
+                                DateTime existingStartDate =
+                                    (doc['dateDebut'] as Timestamp).toDate();
+                                DateTime existingEndDate =
+                                    (doc['dateFin'] as Timestamp).toDate();
+
+                                if ((newStartDate.isBefore(existingEndDate) &&
+                                        newEndDate
+                                            .isAfter(existingStartDate)) ||
+                                    (newStartDate.isAtSameMomentAs(
+                                            existingStartDate) ||
+                                        newEndDate.isAtSameMomentAs(
+                                            existingEndDate))) {
+                                  hasOverlap = true;
+                                  break; 
+                                }
+                              }
+
+                              if (hasOverlap) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                        'Les dates du budget se chevauchent avec un budget existant.'),
+                                  ),
+                                );
+                              } else {
+                                // Ajouter le budget dans Firestore si pas de chevauchement
+                                final budget = BudgetModel.avecParametre(
                                   id: generateID(),
                                   dateDebut: _dateDebut!,
                                   dateFin: _dateFin!,
                                   montant: double.parse(_montant.text),
                                   nomBudget: _nomBudget.text,
                                   descriptionBudget: _descriptionBudget.text,
-                                  revenusIds: revenusIds,
-                                  categories: categoriesIds,
-                                  depense: expensesIds);
-                              await add(budget).then((e) {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => CategoryScreen(),
-                                  ),
                                 );
-                              });
+                                await add(budget).then((e) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => CategoryScreen(),
+                                    ),
+                                  );
+                                });
 
-                              // Afficher un message de validation
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                    content: Text(
-                                        'Formulaire validé et budget ajouté !')),
-                              );
+                                // Afficher un message de validation
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                      content: Text(
+                                          'Formulaire validé et budget ajouté avec succès !')),
+                                );
 
-                              //_dateDebut.clear();
-                              //_dateFin.clear();
-                              _montant.clear();
-                              _nomBudget.clear();
-                              _descriptionBudget.clear();
-
-                              // Naviguer vers la page des catégories
+                                // Réinitialiser les champs du formulaire
+                                _montant.clear();
+                                _nomBudget.clear();
+                                _descriptionBudget.clear();
+                              }
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
@@ -529,6 +496,7 @@ class _FormBudgetState extends State<FormBudget> {
 
                                   final String formattedDateDebut =
                                       "${dateDebut.day}/${dateDebut.month}/${dateDebut.year}";
+                                  // ignore: unnecessary_null_comparison
                                   final String formattedDateFin = dateFin !=
                                           null
                                       ? "${dateFin.day}/${dateFin.month}/${dateFin.year}"
@@ -601,9 +569,8 @@ class _FormBudgetState extends State<FormBudget> {
                             ),
                           )
                         : Center(
-                            child: CircularProgressIndicator(
-                            color: Colors.blueAccent,
-                          )) // Afficher si la liste est vide
+                            child: Text(
+                                'Aucun budget pour vous')) // Afficher si la liste est vide
                     : SizedBox.shrink(),
               ],
             ),

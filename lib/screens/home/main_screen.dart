@@ -3,6 +3,7 @@
 import 'package:budget_app/model/budged.dart';
 import 'package:budget_app/model/depense.dart';
 import 'package:budget_app/model/revenue.dart';
+import 'package:budget_app/screens/home/pages/forms/revenu.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -34,7 +35,6 @@ class _MainScreenState extends State<MainScreen> {
       User? user = FirebaseAuth.instance.currentUser;
 
       if (user != null) {
-
         final snapshot = await BudgetModel.getList;
 
         if (snapshot.isNotEmpty) {
@@ -182,12 +182,117 @@ class _MainScreenState extends State<MainScreen> {
     fetchBudgetDetails(budgetId);
   }
 
+  void _showBudgetReachedDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
+          title: Text('Budget atteint'),
+          content: Text(
+            'Vous avez atteint 100% de votre budget. Voulez-vous ajouter au montant du budget pour pouvoir continuer à ajouter des revenus ?',
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text(
+                'Non',
+                style: TextStyle(color: Colors.grey),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: Text(
+                'Oui',
+                style: TextStyle(color: Colors.green),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _showAddToBudgetDialog(context);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showAddToBudgetDialog(BuildContext context) {
+    final TextEditingController newAmountController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Expanded(
+          child: AlertDialog(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
+            title: Text('Ajouter au budget'),
+            content: Container(
+              decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(4)),
+              child: Padding(
+                padding: const EdgeInsets.only(left: 8.0),
+                child: TextField(
+                  controller: newAmountController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                      border: InputBorder.none,
+                      hintText: 'Montant supplementaire',
+                      hintStyle: TextStyle(
+                          color: Colors.grey, fontWeight: FontWeight.w300)),
+                ),
+              ),
+            ),
+            actions: <Widget>[
+              TextButton(
+                child: Text(
+                  'Annuler',
+                  style: TextStyle(color: Colors.grey),
+                ),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+              TextButton(
+                child: Text(
+                  'Ajouter',
+                  style: TextStyle(color: Colors.green),
+                ),
+                onPressed: () {
+                  double? additionalAmount =
+                      double.tryParse(newAmountController.text);
+                  if (additionalAmount != null && additionalAmount > 0) {
+                    setState(() {
+                      budget.montant += additionalAmount;
+                    });
+                    Navigator.of(context).pop();
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content: Text('Veuillez entrer un montant valide')),
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     double revenusTotal =
         revenus.fold<double>(0.0, (i, item) => i + item.montant);
     double depensesTotal =
         depenses.fold<double>(0.0, (i, item) => i + item.montant);
+    double progress = (budget.montant != null && budget.montant > 0)
+        ? revenusTotal / budget.montant
+        : 0.0;
 
     return SafeArea(
       child: Padding(
@@ -223,36 +328,59 @@ class _MainScreenState extends State<MainScreen> {
                 // Cercle des revenus
                 Column(
                   children: [
-                    Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        SizedBox(
-                          height: 120,
-                          width: 120,
-                          child: CircularProgressIndicator(
-                            value:
-                                (budget.montant != null && budget.montant > 0)
-                                    ? revenusTotal / budget.montant
-                                    : 0.0,
-                            strokeWidth: 15,
-                            backgroundColor: Colors.white70,
-                            color: Colors.greenAccent,
-                          ),
+                    SizedBox(
+                      height: 90,
+                      width: 90,
+                      child: CircularProgressIndicator(
+                        value: progress > 1.0 ? 1.0 : progress,
+                        strokeWidth: 15,
+                        backgroundColor: Colors.white70,
+                        color: progress >= 1.0
+                            ? Colors.redAccent
+                            : Colors.greenAccent,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(10.0),
+                      child: Text(
+                        '${(progress * 100).toStringAsFixed(1)}%', // Affiche le pourcentage
+                        style: TextStyle(
+                          color: progress >= 1.0
+                              ? Colors.redAccent
+                              : Colors.greenAccent,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18.0,
                         ),
-                        Padding(
-                          padding: const EdgeInsets.all(20.0),
+                      ),
+                    ),
+                    if (progress >=
+                        1.0) // Condition pour vérifier si 100% est atteint
+                      ElevatedButton(
+                        onPressed: () {
+                          _showBudgetReachedDialog(context);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          iconColor: Colors.redAccent,
+                          padding:
+                              EdgeInsets.symmetric(horizontal: 5, vertical: 5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                          elevation: 2, // Élévation (ombre)
+                          shadowColor: Colors.redAccent.withOpacity(0.1),
+                        ),
+                        child: Center(
                           child: Text(
-                            '${(budget.montant != null && budget.montant > 0) ? ((revenusTotal / budget.montant) * 100).toStringAsFixed(1) : '0.0'}%',
+                            "Budget atteint à 100%!",
                             style: TextStyle(
-                              color: Colors.greenAccent,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18.0,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w300,
+                              color: Colors.redAccent,
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
+                      ),
+                    const SizedBox(height: 5),
                     Text(
                       'Revenus : \$${revenusTotal.toStringAsFixed(2)}',
                       style: GoogleFonts.roboto(
@@ -263,7 +391,6 @@ class _MainScreenState extends State<MainScreen> {
                     ),
                   ],
                 ),
-
                 // Cercle des dépenses
                 Column(
                   children: [
@@ -271,8 +398,8 @@ class _MainScreenState extends State<MainScreen> {
                       alignment: Alignment.center,
                       children: [
                         SizedBox(
-                          height: 120,
-                          width: 120,
+                          height: 90,
+                          width: 90,
                           child: CircularProgressIndicator(
                             value:
                                 (budget.montant != null && budget.montant > 0)
@@ -284,7 +411,7 @@ class _MainScreenState extends State<MainScreen> {
                           ),
                         ),
                         Padding(
-                          padding: const EdgeInsets.all(20.0),
+                          padding: const EdgeInsets.all(10.0),
                           child: Text(
                             '${(budget.montant != null && budget.montant > 0) ? ((depensesTotal / budget.montant) * 100).toStringAsFixed(1) : '0.0'}%',
                             style: TextStyle(
@@ -296,7 +423,9 @@ class _MainScreenState extends State<MainScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    Padding(
+                      padding: EdgeInsets.all(8.0)),
+                    const SizedBox(height: 10),
                     Text(
                       'Dépenses : \$${depensesTotal.toStringAsFixed(2)}',
                       style: GoogleFonts.roboto(
@@ -379,7 +508,16 @@ class _MainScreenState extends State<MainScreen> {
                 ),
                 Row(
                   children: [
-                    // Bouton pour afficher ou cacher la liste des budgets
+                    IconButton(
+                      icon: Icon(Icons.add, color: Colors.blueAccent),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => CategoryScreen()),
+                        );
+                      },
+                    ),
                     IconButton(
                       icon: Icon(
                         _isIncomeListVisible

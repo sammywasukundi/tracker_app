@@ -28,6 +28,8 @@ class _LoginPageState extends State<LoginPage> {
         context: context,
         builder: (context) {
           return AlertDialog(
+            shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(4.0)),
             title: Text('Erreur'),
             content: Text('Veuillez remplir tous les champs.'),
             actions: <Widget>[
@@ -78,6 +80,8 @@ class _LoginPageState extends State<LoginPage> {
         context: context,
         builder: (context) {
           return AlertDialog(
+            shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(4.0)),
             title: Text('Erreur de connexion'),
             content:
                 Text(e.message ?? 'Échec de la connexion. Veuillez réessayer.'),

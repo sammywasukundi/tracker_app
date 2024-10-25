@@ -4,6 +4,7 @@ import 'package:budget_app/model/budged.dart';
 import 'package:budget_app/model/categorie.dart';
 import 'package:budget_app/model/depense.dart';
 import 'package:budget_app/services/firebase/firebase_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 //import 'package:tracker_app/screens/home/home_page.dart';
@@ -97,18 +98,44 @@ class _AddExpenseState extends State<AddExpense> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(4.0)),
           title: Text('Mettre à jour la dépense'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: montantController,
-                decoration: InputDecoration(labelText: 'Montant'),
-                keyboardType: TextInputType.number,
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.grey[200],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 15.0),
+                  child: TextField(
+                    controller: montantController,
+                    decoration: InputDecoration(
+                      hintText: 'Montant',
+                      border: InputBorder.none,
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
               ),
-              TextField(
-                controller: descriptionController,
-                decoration: InputDecoration(labelText: 'Description'),
+              SizedBox(height: 10,),
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.grey[200],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 15.0),
+                  child: TextField(
+                      controller: descriptionController,
+                      decoration: InputDecoration(
+                        hintText: 'Description',
+                        border: InputBorder.none,
+                      )),
+                ),
               ),
               // Ajouter un sélecteur pour la catégorie et le budget si nécessaire
             ],
@@ -118,7 +145,7 @@ class _AddExpenseState extends State<AddExpense> {
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: Text('Annuler'),
+              child: Text('Annuler',style: TextStyle(color: Colors.grey),),
             ),
             TextButton(
               onPressed: () async {
@@ -128,7 +155,7 @@ class _AddExpenseState extends State<AddExpense> {
                   ..description = descriptionController.text);
                 Navigator.of(context).pop(); // Fermer la boîte de dialogue
               },
-              child: Text('Mettre à jour'),
+              child: Text('Mettre à jour',style: TextStyle(color: Colors.blue),),
             ),
           ],
         );
@@ -411,7 +438,7 @@ class _AddExpenseState extends State<AddExpense> {
                   child: Text(
                     'Annuler',
                     style: TextStyle(
-                      color: Colors.redAccent,
+                      color: Colors.grey,
                       fontWeight: FontWeight.w500,
                       fontSize: 16,
                     ),
@@ -422,7 +449,6 @@ class _AddExpenseState extends State<AddExpense> {
                 onTap: () async {
                   if (_formKey.currentState!.validate()) {
                     // Récupération des valeurs du formulaire
-                    String nom = categoryName!;
                     String montant = _montantDepenseController.text;
                     String description = _descriptionDepenseController.text;
                     DateTime date = selectedDate!;
@@ -432,27 +458,57 @@ class _AddExpenseState extends State<AddExpense> {
                     if (userId.isNotEmpty &&
                         categoryId != null &&
                         selectedBudgetId != null) {
-                      // Appel de la fonction pour ajouter la dépense
-                      final expense = DepenseModel.avecParametre(
-                          id: generateID(),
-                          budgetId: selectedBudgetId!,
-                          categorieId: categoryId!,
-                          categoryName: categoryName!,
-                          dateDepense: date,
-                          description: description,
-                          montant: double.parse(montant),
-                          userId: userId);
-                      await addExpense(
-                          expense); // Inclure l'ID du budget sélectionné
+                      // Récupérer les dates du budget sélectionné depuis Firestore
+                      DocumentSnapshot budget = await FirebaseFirestore.instance
+                          .collection(BudgetModel.collection)
+                          .doc(selectedBudgetId)
+                          .get();
 
-                      if (mounted) {
+                      if (budget.exists) {
+                        // Extraction des dates de début et de fin du budget
+                        DateTime startDate =
+                            (budget['dateDebut'] as Timestamp).toDate();
+                        DateTime endDate =
+                            (budget['dateFin'] as Timestamp).toDate();
+
+                        if (date.isAfter(startDate) && date.isBefore(endDate)) {
+                          final expense = DepenseModel.avecParametre(
+                            id: generateID(),
+                            budgetId: selectedBudgetId!,
+                            categorieId: categoryId!,
+                            categoryName: categoryName!,
+                            dateDepense: date,
+                            description: description,
+                            montant: double.parse(montant),
+                            userId: userId,
+                          );
+                          await addExpense(
+                              expense); // Ajouter la dépense si valide
+
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content:
+                                      Text('Dépense ajoutée avec succès !')),
+                            );
+                            _montantDepenseController.clear();
+                            _descriptionDepenseController.clear();
+                            Navigator.of(context).pop();
+                          }
+                        } else {
+                          // Afficher un message d'erreur si la date de la dépense n'est pas dans la période du budget
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text(
+                                    'La date de la dépense doit être incluse dans la période du budget.')),
+                          );
+                        }
+                      } else {
+                        // Afficher un message si le budget n'existe pas
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                              content: Text('Dépense ajoutée avec succès !')),
+                              content: Text('Budget sélectionné non trouvé.')),
                         );
-                        _montantDepenseController.clear();
-                        _descriptionDepenseController.clear();
-                        Navigator.of(context).pop();
                       }
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -583,7 +639,6 @@ class _AddExpenseState extends State<AddExpense> {
                   itemCount: expenseList.length,
                   itemBuilder: (context, int index) {
                     final expense = expenseList[index];
-                    String? expenseId = expense.id;
                     print("Dépense à l'index $index: $expense");
 
                     final date = (expense.dateDepense);

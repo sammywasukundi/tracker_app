@@ -89,14 +89,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
         return;
       }
 
-      // DocumentReference docRef =
-      //     await FirebaseFirestore.instance.collection('Revenus').add({
-      //   'source': source,
-      //   'montant': montant,
-      //   'budgetId': budgetId,
-      //   'budgetName': budgetName,
-      //   'createdAt': FieldValue.serverTimestamp(),
-      // });
       await revenu.add();
       final result = await RevenueModel.getList;
 
@@ -243,7 +235,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 child: Text(
                   'Annuler',
                   style: TextStyle(
-                    color: Colors.redAccent,
+                    color: Colors.grey,
                     fontWeight: FontWeight.w500,
                     fontSize: 16,
                   ),
@@ -405,7 +397,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 child: Text(
                   'Annuler',
                   style: TextStyle(
-                    color: Colors.redAccent,
+                    color: Colors.grey,
                     fontWeight: FontWeight.w500,
                     fontSize: 16,
                   ),

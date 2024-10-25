@@ -8,9 +8,6 @@ class BudgetModel {
   double montant = 0;
   String nomBudget = '';
   String descriptionBudget = '';
-  List<String> revenusIds = [];
-  List<String> categories = [];
-  List<String> depense = [];
   // DateTime createdAt = ;
 
   BudgetModel();
@@ -21,9 +18,6 @@ class BudgetModel {
     required this.montant,
     required this.nomBudget,
     required this.descriptionBudget,
-    required this.revenusIds,
-    required this.categories,
-    required this.depense,
     // required this.createdAt,
   });
 
@@ -34,9 +28,6 @@ class BudgetModel {
         'montant': montant,
         'nomBudget': nomBudget,
         'descriptionBudget': descriptionBudget,
-        'revenus': revenusIds,
-        'categories': categories,
-        'depenses': depense,
         // 'createdAt': FieldValue.serverTimestamp(),
       };
 
@@ -48,9 +39,6 @@ class BudgetModel {
         montant: double.parse(data['montant'].toString()),
         nomBudget: data['nomBudget'],
         descriptionBudget: data['descriptionBudget'],
-        revenusIds: (data['revenus'] as List).cast<String>(),
-        categories: (data['categories'] as List).cast<String>(),
-        depense: (data['depenses'] as List).cast<String>(),
       );
 
   static const collection = 'budgetCollection';
